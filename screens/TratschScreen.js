@@ -18,15 +18,24 @@ const INITIAL_ANTWORTEN = [
 const SWIPE_THRESHOLD = 60;
 
 // ─── SwipeableMessage ────────────────────────────────────────────────────────
-function SwipeableMessage({ item, onSwipe }) {
+function SwipeableMessage({ item, onSwipe, onScrollLock }) {
   const translateX = useRef(new Animated.Value(0)).current;
   const iconOpacity = useRef(new Animated.Value(0)).current;
   const triggered = useRef(false);
+  const isSwiping = useRef(false);
 
   const panResponder = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) => g.dx > 8 && Math.abs(g.dy) < 20,
-      onPanResponderGrant: () => { triggered.current = false; },
+      // Capture phase: claim the gesture before FlatList can scroll
+      onMoveShouldSetPanResponderCapture: (_, g) => {
+        const isHorizontal = Math.abs(g.dx) > Math.abs(g.dy) * 1.5;
+        return g.dx > 5 && isHorizontal;
+      },
+      onPanResponderGrant: () => {
+        triggered.current = false;
+        isSwiping.current = true;
+        onScrollLock(true);
+      },
       onPanResponderMove: (_, g) => {
         if (g.dx < 0) return;
         const clamped = Math.min(g.dx, SWIPE_THRESHOLD + 20);
@@ -39,6 +48,16 @@ function SwipeableMessage({ item, onSwipe }) {
         }
       },
       onPanResponderRelease: () => {
+        isSwiping.current = false;
+        onScrollLock(false);
+        Animated.parallel([
+          Animated.spring(translateX, { toValue: 0, useNativeDriver: true, speed: 20, bounciness: 6 }),
+          Animated.timing(iconOpacity, { toValue: 0, duration: 150, useNativeDriver: true }),
+        ]).start();
+      },
+      onPanResponderTerminate: () => {
+        isSwiping.current = false;
+        onScrollLock(false);
         Animated.parallel([
           Animated.spring(translateX, { toValue: 0, useNativeDriver: true, speed: 20, bounciness: 6 }),
           Animated.timing(iconOpacity, { toValue: 0, duration: 150, useNativeDriver: true }),
@@ -49,7 +68,6 @@ function SwipeableMessage({ item, onSwipe }) {
 
   return (
     <View style={styles.swipeRow}>
-      {/* Reply icon revealed behind */}
       <Animated.View style={[styles.replyIcon, { opacity: iconOpacity }]}>
         <Text style={{ fontSize: 18 }}>↩️</Text>
       </Animated.View>
@@ -92,10 +110,15 @@ function ThreadDetail({ thread, onBack }) {
   const [antworten, setAntworten] = useState(INITIAL_ANTWORTEN);
   const [text, setText] = useState('');
   const [replyingTo, setReplyingTo] = useState(null);
+  const [scrollEnabled, setScrollEnabled] = useState(true);
   const flatListRef = useRef(null);
 
   const handleSwipe = useCallback((item) => {
     setReplyingTo(item);
+  }, []);
+
+  const handleScrollLock = useCallback((locked) => {
+    setScrollEnabled(!locked);
   }, []);
 
   function sendeAntwort() {
@@ -126,6 +149,7 @@ function ThreadDetail({ thread, onBack }) {
         keyExtractor={item => item.id}
         contentContainerStyle={styles.list}
         keyboardShouldPersistTaps="handled"
+        scrollEnabled={scrollEnabled}
         ListHeaderComponent={
           <View style={styles.threadHeader}>
             <View style={styles.avatar}>
@@ -138,7 +162,7 @@ function ThreadDetail({ thread, onBack }) {
           </View>
         }
         renderItem={({ item }) => (
-          <SwipeableMessage item={item} onSwipe={handleSwipe} />
+          <SwipeableMessage item={item} onSwipe={handleSwipe} onScrollLock={handleScrollLock} />
         )}
       />
 

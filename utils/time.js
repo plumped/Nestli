@@ -8,3 +8,9 @@ export function relativeTime(ts) {
   const d = Math.floor(h / 24);
   return `vor ${d} Tag${d > 1 ? 'en' : ''}`;
 }
+
+export function exactTime(ts) {
+  const d = new Date(ts);
+  const pad = n => String(n).padStart(2, '0');
+  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}, ${pad(d.getHours())}:${pad(d.getMinutes())} Uhr`;
+}

@@ -1,8 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const KEY = {
-  threads:   'nestli_threads_v2',
-  answers:   'nestli_answers_v2',
+  threads:   'nestli_threads_v3',
+  answers:   'nestli_answers_v3',
   seen:      'nestli_seen_ids',
   hint:      'nestli_swipe_hint',
   userName:  'nestli_user_name',

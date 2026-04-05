@@ -1,265 +1,167 @@
 import {
-  View, Text, TextInput, TouchableOpacity,
-  FlatList, StyleSheet, Animated, PanResponder, Keyboard,
+  View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Alert,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { useState, useRef, useCallback } from 'react';
+import { useState, useMemo } from 'react';
+import { useHeaderHeight } from '@react-navigation/elements';
+import { useTratsch } from '../context/TratschContext';
+import ThreadDetailScreen from './ThreadDetailScreen';
+import { relativeTime } from '../utils/time';
+import { colors } from '../theme';
 
-const INITIAL_THREADS = [
-  { id: '1', autor: 'Sarah', titel: 'Guter Kinderarzt in Bern?', text: 'Suche dringend einen Kinderarzt der noch Patienten nimmt...', antworten: 3, zeit: 'vor 2 Min' },
-  { id: '2', autor: 'Anna', titel: 'Turnverein für 4-Jährige', text: 'Wer hat Erfahrungen mit Turnvereinen für kleine Kinder?', antworten: 1, zeit: 'vor 1 Std' },
-  { id: '3', autor: 'Julia', titel: 'Empfehlung Logopädin', text: 'Mein Sohn braucht Logopädie – kennt jemand jemanden?', antworten: 5, zeit: 'vor 3 Std' },
-];
+export default function TratschScreen() {
+  const { threads, answersMap, seenIds, addThread, deleteThread, markSeen } = useTratsch();
+  const headerHeight = useHeaderHeight();
 
-const INITIAL_ANTWORTEN = [
-  { id: '1', autor: 'Julia', text: 'Wir waren super zufrieden mit Dr. Müller!', zeit: 'vor 1 Min', replyTo: null },
-  { id: '2', autor: 'Petra', text: 'Schreib mal Dr. Meier an, der hat noch Plätze.', zeit: 'vor 30 Min', replyTo: null },
-];
+  const [selected,   setSelected]   = useState(null);
+  const [search,     setSearch]     = useState('');
+  const [showForm,   setShowForm]   = useState(false);
+  const [titel,      setTitel]      = useState('');
+  const [body,       setBody]       = useState('');
 
-const SWIPE_THRESHOLD = 60;
+  const filtered = useMemo(() => {
+    if (!search.trim()) return threads;
+    const q = search.toLowerCase();
+    return threads.filter(t =>
+      t.titel.toLowerCase().includes(q) || t.text.toLowerCase().includes(q)
+    );
+  }, [threads, search]);
 
-// ─── SwipeableMessage ────────────────────────────────────────────────────────
-function SwipeableMessage({ item, onSwipe, onScrollLock }) {
-  const translateX = useRef(new Animated.Value(0)).current;
-  const iconOpacity = useRef(new Animated.Value(0)).current;
-  const triggered = useRef(false);
-  const isSwiping = useRef(false);
-
-  const panResponder = useRef(
-    PanResponder.create({
-      // Capture phase: claim the gesture before FlatList can scroll
-      onMoveShouldSetPanResponderCapture: (_, g) => {
-        const isHorizontal = Math.abs(g.dx) > Math.abs(g.dy) * 1.5;
-        return g.dx > 5 && isHorizontal;
-      },
-      onPanResponderGrant: () => {
-        triggered.current = false;
-        isSwiping.current = true;
-        onScrollLock(true);
-      },
-      onPanResponderMove: (_, g) => {
-        if (g.dx < 0) return;
-        const clamped = Math.min(g.dx, SWIPE_THRESHOLD + 20);
-        translateX.setValue(clamped);
-        iconOpacity.setValue(Math.min(clamped / SWIPE_THRESHOLD, 1));
-
-        if (!triggered.current && g.dx >= SWIPE_THRESHOLD) {
-          triggered.current = true;
-          onSwipe(item);
-        }
-      },
-      onPanResponderRelease: () => {
-        isSwiping.current = false;
-        onScrollLock(false);
-        Animated.parallel([
-          Animated.spring(translateX, { toValue: 0, useNativeDriver: true, speed: 20, bounciness: 6 }),
-          Animated.timing(iconOpacity, { toValue: 0, duration: 150, useNativeDriver: true }),
-        ]).start();
-      },
-      onPanResponderTerminate: () => {
-        isSwiping.current = false;
-        onScrollLock(false);
-        Animated.parallel([
-          Animated.spring(translateX, { toValue: 0, useNativeDriver: true, speed: 20, bounciness: 6 }),
-          Animated.timing(iconOpacity, { toValue: 0, duration: 150, useNativeDriver: true }),
-        ]).start();
-      },
-    })
-  ).current;
-
-  return (
-    <View style={styles.swipeRow}>
-      <Animated.View style={[styles.replyIcon, { opacity: iconOpacity }]}>
-        <Text style={{ fontSize: 18 }}>↩️</Text>
-      </Animated.View>
-
-      <Animated.View
-        style={{ flex: 1, transform: [{ translateX }] }}
-        {...panResponder.panHandlers}
-      >
-        <View style={styles.antwort}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{item.autor[0]}</Text>
-          </View>
-          <View style={styles.antwortBody}>
-            <View style={styles.antwortHeader}>
-              <Text style={styles.autor}>{item.autor}</Text>
-              <Text style={styles.zeit}>{item.zeit}</Text>
-            </View>
-
-            {/* Quote block if this message is a reply */}
-            {item.replyTo && (
-              <View style={styles.quoteBlock}>
-                <View style={styles.quoteLine} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.quoteAutor}>{item.replyTo.autor}</Text>
-                  <Text style={styles.quoteText} numberOfLines={2}>{item.replyTo.text}</Text>
-                </View>
-              </View>
-            )}
-
-            <Text style={styles.antwortText}>{item.text}</Text>
-          </View>
-        </View>
-      </Animated.View>
-    </View>
-  );
-}
-
-// ─── ThreadDetail ────────────────────────────────────────────────────────────
-function ThreadDetail({ thread, onBack }) {
-  const [antworten, setAntworten] = useState(INITIAL_ANTWORTEN);
-  const [text, setText] = useState('');
-  const [replyingTo, setReplyingTo] = useState(null);
-  const [scrollEnabled, setScrollEnabled] = useState(true);
-  const flatListRef = useRef(null);
-
-  const handleSwipe = useCallback((item) => {
-    setReplyingTo(item);
-  }, []);
-
-  const handleScrollLock = useCallback((locked) => {
-    setScrollEnabled(!locked);
-  }, []);
-
-  function sendeAntwort() {
-    if (!text.trim()) return;
-    const neu = {
-      id: Date.now().toString(),
-      autor: 'Du',
-      text: text.trim(),
-      zeit: 'gerade eben',
-      replyTo: replyingTo ? { autor: replyingTo.autor, text: replyingTo.text } : null,
-    };
-    setAntworten(prev => [...prev, neu]);
-    setText('');
-    setReplyingTo(null);
-    Keyboard.dismiss();
-    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+  function openThread(thread) {
+    markSeen(thread.id);
+    setSelected(thread);
   }
 
-  return (
-    <View style={styles.container}>
-      <TouchableOpacity style={styles.backBtn} onPress={onBack}>
-        <Text style={styles.backText}>← Zurück</Text>
-      </TouchableOpacity>
+  function confirmDelete(thread) {
+    Alert.alert(
+      'Thread löschen?',
+      `"${thread.titel}" wirklich entfernen?`,
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        { text: 'Löschen', style: 'destructive', onPress: () => deleteThread(thread.id) },
+      ]
+    );
+  }
 
-      <FlatList
-        ref={flatListRef}
-        data={antworten}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.list}
-        keyboardShouldPersistTaps="handled"
-        scrollEnabled={scrollEnabled}
-        ListHeaderComponent={
-          <View style={styles.threadHeader}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{thread.autor[0]}</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.threadTitel}>{thread.titel}</Text>
-              <Text style={styles.threadAutor}>{thread.autor} · {thread.zeit}</Text>
-            </View>
-          </View>
-        }
-        renderItem={({ item }) => (
-          <SwipeableMessage item={item} onSwipe={handleSwipe} onScrollLock={handleScrollLock} />
-        )}
-      />
-
-      {/* Reply banner */}
-      {replyingTo && (
-        <View style={styles.replyBanner}>
-          <View style={styles.replyBannerLine} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.replyBannerAutor}>{replyingTo.autor}</Text>
-            <Text style={styles.replyBannerText} numberOfLines={1}>{replyingTo.text}</Text>
-          </View>
-          <TouchableOpacity onPress={() => setReplyingTo(null)} style={styles.replyClose}>
-            <Text style={styles.replyCloseText}>✕</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      <View style={styles.inputBox}>
-        <TextInput
-          style={styles.input}
-          placeholder="Antworten..."
-          value={text}
-          onChangeText={setText}
-          multiline
-        />
-        <TouchableOpacity
-          style={[styles.button, !text.trim() && styles.buttonDisabled]}
-          onPress={sendeAntwort}
-          disabled={!text.trim()}
-        >
-          <Text style={styles.buttonText}>Senden</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-}
-
-// ─── TratschScreen ───────────────────────────────────────────────────────────
-export default function TratschScreen() {
-  const [threads, setThreads] = useState(INITIAL_THREADS);
-  const [selected, setSelected] = useState(null);
-  const [neuerTitel, setNeuerTitel] = useState('');
-  const [neuerText, setNeuerText] = useState('');
-  const [showForm, setShowForm] = useState(false);
-
-  function threadErstellen() {
-    if (!neuerTitel.trim()) return;
-    setThreads([{
-      id: Date.now().toString(),
-      autor: 'Du',
-      titel: neuerTitel.trim(),
-      text: neuerText.trim(),
-      antworten: 0,
-      zeit: 'gerade eben',
-    }, ...threads]);
-    setNeuerTitel('');
-    setNeuerText('');
+  function erstellen() {
+    if (!titel.trim()) return;
+    addThread(titel, body);
+    setTitel('');
+    setBody('');
     setShowForm(false);
   }
 
+  // ── Thread detail ─────────────────────────────────────────────────────────
   if (selected) {
-    return <ThreadDetail thread={selected} onBack={() => setSelected(null)} />;
+    return <ThreadDetailScreen thread={selected} onBack={() => setSelected(null)} />;
   }
 
+  // ── Thread list ───────────────────────────────────────────────────────────
   return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={headerHeight}
+    >
     <View style={styles.container}>
-      <FlatList
-        data={threads}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.list}
-        renderItem={({ item }) => (
-          <TouchableOpacity style={styles.threadCard} onPress={() => setSelected(item)}>
-            <View style={styles.threadRow}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{item.autor[0]}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.threadTitel}>{item.titel}</Text>
-                <Text style={styles.threadMeta}>{item.autor} · {item.zeit}</Text>
-              </View>
-            </View>
-            <Text style={styles.threadPreview} numberOfLines={2}>{item.text}</Text>
-            <Text style={styles.antwortCount}>💬 {item.antworten} Antworten</Text>
+      {/* Search bar */}
+      <View style={styles.searchRow}>
+        <Text style={styles.searchIcon}>🔍</Text>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Themen suchen..."
+          value={search}
+          onChangeText={setSearch}
+          returnKeyType="search"
+        />
+        {search.length > 0 && (
+          <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={styles.searchClear}>✕</Text>
           </TouchableOpacity>
         )}
+      </View>
+
+      <FlatList
+        data={filtered}
+        keyExtractor={item => item.id}
+        contentContainerStyle={[styles.list, filtered.length === 0 && styles.listCenter]}
+        keyboardShouldPersistTaps="handled"
+        renderItem={({ item }) => {
+          const isUnread    = !seenIds.has(item.id);
+          const answerCount = (answersMap[item.id] ?? []).length;
+          return (
+            <TouchableOpacity
+              style={[styles.card, isUnread && styles.cardUnread]}
+              onPress={() => openThread(item)}
+              onLongPress={() => confirmDelete(item)}
+              delayLongPress={600}
+              activeOpacity={0.75}
+            >
+              <View style={styles.cardRow}>
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{item.autor[0]}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.titleRow}>
+                    <Text style={styles.cardTitel} numberOfLines={1}>{item.titel}</Text>
+                    {isUnread && <View style={styles.unreadDot} />}
+                  </View>
+                  <Text style={styles.cardMeta}>{item.autor} · {relativeTime(item.ts)}</Text>
+                </View>
+              </View>
+              {!!item.text && (
+                <Text style={styles.cardPreview} numberOfLines={2}>{item.text}</Text>
+              )}
+              <Text style={styles.replyCount}>
+                💬 {answerCount} Antwort{answerCount !== 1 ? 'en' : ''}
+              </Text>
+            </TouchableOpacity>
+          );
+        }}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyEmoji}>{search ? '🔍' : '💬'}</Text>
+            <Text style={styles.emptyTitle}>
+              {search ? 'Nichts gefunden' : 'Noch keine Themen'}
+            </Text>
+            <Text style={styles.emptySub}>
+              {search
+                ? `Keine Treffer für "${search}"`
+                : 'Erstell das erste Thema für eure Gruppe!'}
+            </Text>
+          </View>
+        }
       />
 
+      {/* New thread form */}
       {showForm && (
         <View style={styles.form}>
-          <TextInput style={styles.input} placeholder="Titel deines Themas" value={neuerTitel} onChangeText={setNeuerTitel} />
-          <TextInput style={[styles.input, { marginTop: 8, minHeight: 60 }]} placeholder="Beschreibe dein Anliegen..." value={neuerText} onChangeText={setNeuerText} multiline />
-          <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-            <TouchableOpacity style={[styles.button, { flex: 1, backgroundColor: '#eee' }]} onPress={() => setShowForm(false)}>
-              <Text style={[styles.buttonText, { color: '#888' }]}>Abbrechen</Text>
+          <TextInput
+            style={styles.formInput}
+            placeholder="Titel deines Themas *"
+            value={titel}
+            onChangeText={setTitel}
+          />
+          <TextInput
+            style={[styles.formInput, styles.formTextarea]}
+            placeholder="Beschreibe dein Anliegen... (optional)"
+            value={body}
+            onChangeText={setBody}
+            multiline
+          />
+          <View style={styles.formActions}>
+            <TouchableOpacity
+              style={[styles.formBtn, styles.formBtnSecondary]}
+              onPress={() => { setShowForm(false); setTitel(''); setBody(''); }}
+            >
+              <Text style={styles.formBtnSecondaryText}>Abbrechen</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.button, { flex: 1 }, !neuerTitel.trim() && styles.buttonDisabled]} onPress={threadErstellen} disabled={!neuerTitel.trim()}>
-              <Text style={styles.buttonText}>Posten</Text>
+            <TouchableOpacity
+              style={[styles.formBtn, !titel.trim() && styles.formBtnDisabled]}
+              onPress={erstellen}
+              disabled={!titel.trim()}
+            >
+              <Text style={styles.formBtnText}>Posten</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -271,67 +173,56 @@ export default function TratschScreen() {
         </TouchableOpacity>
       )}
     </View>
+    </KeyboardAvoidingView>
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  list: { padding: 16, gap: 12, paddingBottom: 80 },
+  container: { flex: 1, backgroundColor: colors.bg },
 
-  // Thread list
-  threadCard: { backgroundColor: '#fafafa', borderRadius: 14, padding: 14, borderWidth: 0.5, borderColor: '#eee', gap: 8 },
-  threadRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  threadTitel: { fontSize: 14, fontWeight: '500', color: '#222' },
-  threadMeta: { fontSize: 11, color: '#aaa', marginTop: 2 },
-  threadPreview: { fontSize: 13, color: '#666', lineHeight: 19 },
-  antwortCount: { fontSize: 12, color: '#aaa' },
+  // Search
+  searchRow:   { flexDirection: 'row', alignItems: 'center', margin: 12, marginBottom: 4, backgroundColor: colors.bgAlt, borderRadius: 12, borderWidth: 0.5, borderColor: colors.border, paddingHorizontal: 12, paddingVertical: 8, gap: 8 },
+  searchIcon:  { fontSize: 14 },
+  searchInput: { flex: 1, fontSize: 14, color: colors.text },
+  searchClear: { color: colors.textMuted, fontSize: 13 },
 
-  // Thread detail header
-  threadHeader: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', backgroundColor: '#FBEAF0', borderRadius: 14, padding: 14, marginBottom: 16 },
-  threadAutor: { fontSize: 12, color: '#aaa', marginTop: 4 },
+  // List
+  list:       { padding: 12, gap: 10, paddingBottom: 90 },
+  listCenter: { flex: 1, justifyContent: 'center' },
+
+  // Thread card
+  card:        { backgroundColor: colors.bgAlt, borderRadius: 14, padding: 14, borderWidth: 0.5, borderColor: colors.border, gap: 6 },
+  cardUnread:  { borderColor: colors.primaryMid, backgroundColor: '#fffafc' },
+  cardRow:     { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  titleRow:    { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  cardTitel:   { fontSize: 14, fontWeight: '500', color: colors.text, flex: 1 },
+  unreadDot:   { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary, flexShrink: 0 },
+  cardMeta:    { fontSize: 11, color: colors.textMuted, marginTop: 2 },
+  cardPreview: { fontSize: 13, color: colors.textLight, lineHeight: 19 },
+  replyCount:  { fontSize: 12, color: colors.textMuted },
 
   // Avatar
-  avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#FBEAF0', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: '#993556', fontWeight: '500', fontSize: 15 },
+  avatar:     { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: colors.primary, fontWeight: '500', fontSize: 15 },
 
-  // Swipe row
-  swipeRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  replyIcon: { position: 'absolute', left: 4, zIndex: 0 },
+  // Empty state
+  emptyState: { alignItems: 'center', gap: 8 },
+  emptyEmoji: { fontSize: 40 },
+  emptyTitle: { fontSize: 16, fontWeight: '500', color: colors.textMid },
+  emptySub:   { fontSize: 13, color: colors.textMuted, textAlign: 'center', maxWidth: 240, lineHeight: 20 },
 
-  // Message
-  antwort: { flexDirection: 'row', gap: 10, flex: 1 },
-  antwortBody: { flex: 1, backgroundColor: '#fafafa', borderRadius: 12, padding: 12, borderWidth: 0.5, borderColor: '#eee' },
-  antwortHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  autor: { fontSize: 13, fontWeight: '500', color: '#333' },
-  zeit: { fontSize: 11, color: '#aaa' },
-  antwortText: { fontSize: 14, color: '#444', lineHeight: 20 },
+  // Form
+  form:              { padding: 16, borderTopWidth: 0.5, borderTopColor: colors.border, backgroundColor: colors.bg, gap: 8 },
+  formInput:         { backgroundColor: colors.bgAlt, borderWidth: 0.5, borderColor: colors.border, borderRadius: 12, padding: 12, fontSize: 14 },
+  formTextarea:      { minHeight: 70, textAlignVertical: 'top' },
+  formActions:       { flexDirection: 'row', gap: 8 },
+  formBtn:           { flex: 1, backgroundColor: colors.primary, borderRadius: 12, padding: 12, alignItems: 'center' },
+  formBtnDisabled:   { backgroundColor: colors.border },
+  formBtnSecondary:  { backgroundColor: colors.bgAlt, borderWidth: 0.5, borderColor: colors.border },
+  formBtnText:       { color: '#fff', fontWeight: '500', fontSize: 14 },
+  formBtnSecondaryText: { color: colors.textLight, fontWeight: '500', fontSize: 14 },
 
-  // Quote block (inside message)
-  quoteBlock: { flexDirection: 'row', gap: 8, backgroundColor: '#F3E0E6', borderRadius: 8, padding: 8, marginBottom: 8 },
-  quoteLine: { width: 3, backgroundColor: '#993556', borderRadius: 2 },
-  quoteAutor: { fontSize: 12, fontWeight: '600', color: '#993556', marginBottom: 2 },
-  quoteText: { fontSize: 12, color: '#666', lineHeight: 17 },
-
-  // Reply banner (above input)
-  replyBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 10, borderTopWidth: 0.5, borderTopColor: '#eee', backgroundColor: '#fafafa' },
-  replyBannerLine: { width: 3, height: '100%', backgroundColor: '#993556', borderRadius: 2 },
-  replyBannerAutor: { fontSize: 12, fontWeight: '600', color: '#993556' },
-  replyBannerText: { fontSize: 12, color: '#888' },
-  replyClose: { padding: 4 },
-  replyCloseText: { color: '#aaa', fontSize: 14 },
-
-  // Input bar
-  inputBox: { flexDirection: 'row', padding: 12, gap: 10, borderTopWidth: 0.5, borderTopColor: '#eee', backgroundColor: '#fff', alignItems: 'flex-end' },
-  input: { flex: 1, backgroundColor: '#fafafa', borderRadius: 12, borderWidth: 0.5, borderColor: '#eee', padding: 10, fontSize: 14 },
-  button: { backgroundColor: '#993556', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10, alignItems: 'center' },
-  buttonDisabled: { backgroundColor: '#eee' },
-  buttonText: { color: '#fff', fontWeight: '500', fontSize: 14 },
-
-  // Nav / form
-  backBtn: { padding: 16, paddingBottom: 8 },
-  backText: { color: '#993556', fontSize: 14 },
-  form: { padding: 16, borderTopWidth: 0.5, borderTopColor: '#eee', backgroundColor: '#fff' },
-  fab: { position: 'absolute', bottom: 16, right: 16, left: 16, backgroundColor: '#993556', borderRadius: 14, padding: 14, alignItems: 'center' },
+  // FAB
+  fab:     { position: 'absolute', bottom: 16, right: 16, left: 16, backgroundColor: colors.primary, borderRadius: 14, padding: 14, alignItems: 'center' },
   fabText: { color: '#fff', fontWeight: '500', fontSize: 15 },
 });

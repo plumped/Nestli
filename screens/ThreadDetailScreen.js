@@ -3,6 +3,7 @@ import {
   KeyboardAvoidingView, Platform, Keyboard,
 } from 'react-native';
 import { useState, useRef, useCallback } from 'react';
+import { useHeaderHeight } from '@react-navigation/elements';
 import { useTratsch } from '../context/TratschContext';
 import SwipeableMessage from '../components/SwipeableMessage';
 import { relativeTime } from '../utils/time';
@@ -10,6 +11,7 @@ import { colors } from '../theme';
 
 export default function ThreadDetailScreen({ thread, onBack }) {
   const { answersMap, addAnswer, toggleReaction, currentUser, hintShown, markHintShown } = useTratsch();
+  const headerHeight = useHeaderHeight();
 
   const answers = (answersMap[thread.id] ?? []).map(a => ({
     ...a,
@@ -45,7 +47,7 @@ export default function ThreadDetailScreen({ thread, onBack }) {
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: colors.bg }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+      keyboardVerticalOffset={headerHeight}
     >
       {/* Back button – full-width touch target */}
       <TouchableOpacity style={styles.backBtn} onPress={onBack} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>

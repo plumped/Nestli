@@ -1,29 +1,29 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { storage } from '../utils/storage';
 
-// ─── Seed data: Tratsch ───────────────────────────────────────────────────────
 const NOW = Date.now();
 
+// ─── Seed: Tratsch ────────────────────────────────────────────────────────────
 const SEED_THREADS = [
   {
     id: 's1', autor: 'Sarah', titel: 'Guter Kinderarzt in Bern?',
     text: 'Suche dringend einen Kinderarzt der noch Patienten nimmt...',
-    ts: NOW - 2 * 60000, tag: 'gesundheit', solved: false, imageUri: null, poll: null,
+    ts: NOW - 2 * 60000, tag: 'gesundheit', solved: false, imageUri: null, poll: null, pinned: true,
   },
   {
     id: 's2', autor: 'Anna', titel: 'Turnverein für 4-Jährige',
     text: 'Wer hat Erfahrungen mit Turnvereinen für kleine Kinder?',
-    ts: NOW - 60 * 60000, tag: 'frage', solved: false, imageUri: null, poll: null,
+    ts: NOW - 60 * 60000, tag: 'frage', solved: false, imageUri: null, poll: null, pinned: false,
   },
   {
     id: 's3', autor: 'Julia', titel: 'Empfehlung Logopädin',
     text: 'Mein Sohn braucht Logopädie – kennt jemand jemanden?',
-    ts: NOW - 3 * 3600000, tag: 'gesundheit', solved: false, imageUri: null, poll: null,
+    ts: NOW - 3 * 3600000, tag: 'gesundheit', solved: false, imageUri: null, poll: null, pinned: false,
   },
   {
     id: 's4', autor: 'Monika', titel: 'Spielnachmittag – wann passt euch?',
     text: 'Wir würden gerne einen Spielnachmittag für die Kinder organisieren.',
-    ts: NOW - 5 * 3600000, tag: 'termine', solved: false, imageUri: null,
+    ts: NOW - 5 * 3600000, tag: 'termine', solved: false, imageUri: null, pinned: false,
     poll: {
       question: 'Welcher Tag passt euch?',
       options: [
@@ -47,7 +47,7 @@ const SEED_ANSWERS = {
   s4: [],
 };
 
-// ─── Seed data: Notfall ───────────────────────────────────────────────────────
+// ─── Seed: Notfall ────────────────────────────────────────────────────────────
 const SEED_NOTFAELLE = [
   {
     id: 'n1', autor: 'Sarah', type: 'abholen',
@@ -73,63 +73,117 @@ const SEED_NOTFAELLE = [
   },
 ];
 
-// ─── Seed data: Kleider ───────────────────────────────────────────────────────
+// ─── Seed: Kleider ────────────────────────────────────────────────────────────
 const SEED_INSERATE = [
   {
     id: 'k1', autor: 'Sarah', modus: 'biete', kategorie: 'jacke',
     titel: 'Winterjacke Gr. 110, kaum getragen',
-    text: 'Dunkelblau, Marke Reima. Nur eine Saison getragen. Sehr guter Zustand, keine Flecken.',
+    text: 'Dunkelblau, Marke Reima. Nur eine Saison getragen.',
     groesse: '110', ts: NOW - 20 * 60000,
     bilder: [], interessenten: [], vergeben: false,
   },
   {
     id: 'k2', autor: 'Anna', modus: 'suche', kategorie: 'schuhe',
     titel: 'Turnschuhe Gr. 32 gesucht',
-    text: 'Fuer den Sommer, gerne bunt. Hauptsache guter Zustand.',
+    text: 'Fuer den Sommer, gerne bunt.',
     groesse: '32', ts: NOW - 2 * 3600000,
     bilder: [], interessenten: ['Julia'], vergeben: false,
   },
   {
     id: 'k3', autor: 'Julia', modus: 'tausch', kategorie: 'hose',
     titel: 'Jeans Gr. 104 gegen Gr. 110',
-    text: 'Slim fit, hellblau. Biete 104, suche 110.',
+    text: 'Slim fit, hellblau.',
     groesse: '104', ts: NOW - 5 * 3600000,
     bilder: [], interessenten: [], vergeben: false,
   },
+];
+
+// ─── Seed: Draussen ───────────────────────────────────────────────────────────
+const SEED_DRAUSSEN = [
+  { id: 'd1', autor: 'Anna',  ort: 'Spielplatz Birkenweg', seit: NOW - 25 * 60000 },
+  { id: 'd2', autor: 'Julia', ort: 'Garten (Block A)',     seit: NOW - 10 * 60000 },
+];
+
+// ─── Seed: Events ─────────────────────────────────────────────────────────────
+const SEED_EVENTS = [
   {
-    id: 'k4', autor: 'Monika', modus: 'biete', kategorie: 'kleid',
-    titel: 'Sommerkleid Gr. 116, wie neu',
-    text: 'Geblumtes Kleid, nur zweimal getragen.',
-    groesse: '116', ts: NOW - 1 * 3600000,
-    bilder: [], interessenten: ['Sarah', 'Petra'], vergeben: false,
+    id: 'ev1', autor: 'Monika',
+    titel: 'Grillabend im Innenhof',
+    beschreibung: 'Jeder bringt etwas mit! Getränke sind vorhanden.',
+    datum: new Date(NOW + 2 * 24 * 3600000).toISOString(),
+    uhrzeit: '18:00', ort: 'Innenhof Block B',
+    kategorie: 'grillabend', teilnehmer: ['Monika', 'Sarah', 'Anna'],
+    ts: NOW - 3600000,
+  },
+  {
+    id: 'ev2', autor: 'Sarah',
+    titel: 'Spielnachmittag bei Sarah',
+    beschreibung: 'Für Kinder 3–8 Jahre. Snacks vorhanden.',
+    datum: new Date(NOW + 5 * 24 * 3600000).toISOString(),
+    uhrzeit: '14:30', ort: 'Wohnung 14, 2. OG',
+    kategorie: 'spielnachmittag', teilnehmer: ['Sarah'],
+    ts: NOW - 1800000,
+  },
+  {
+    id: 'ev3', autor: 'Anna',
+    titel: 'Sommerferien Familie Müller',
+    beschreibung: '',
+    datum: new Date(NOW + 14 * 24 * 3600000).toISOString(),
+    uhrzeit: null, ort: null,
+    kategorie: 'ferien', teilnehmer: ['Anna'],
+    ts: NOW - 7200000,
   },
 ];
+
+// ─── Seed: Kinder ─────────────────────────────────────────────────────────────
+const SEED_KINDER = {
+  'Sarah':  [{ name: 'Lena',   alter: 7 }],
+  'Anna':   [{ name: 'Max',    alter: 5 }, { name: 'Mia',    alter: 3 }],
+  'Julia':  [{ name: 'Luca',   alter: 6 }],
+  'Monika': [{ name: 'Elias',  alter: 5 }],
+  'Petra':  [{ name: 'Sophie', alter: 8 }],
+};
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 const AppContext = createContext(null);
 
 export function TratschProvider({ children }) {
-  // ── Tratsch state ──────────────────────────────────────────────────────────
-  const [currentUser, setCurrentUser] = useState('Du');
-  const [threads,     setThreads]     = useState([]);
-  const [answersMap,  setAnswersMap]   = useState({});
-  const [seenIds,     setSeenIds]      = useState(new Set());
-  const [hintShown,   setHintShown]    = useState(false);
+  // ── Tratsch ────────────────────────────────────────────────────────────────
+  const [currentUser,  setCurrentUser]  = useState('Du');
+  const [threads,      setThreads]      = useState([]);
+  const [answersMap,   setAnswersMap]   = useState({});
+  const [seenIds,      setSeenIds]      = useState(new Set());
+  const [hintShown,    setHintShown]    = useState(false);
+  const [bookmarks,    setBookmarks]    = useState(new Set());
+  const [pinnedIds,    setPinnedIds]    = useState(new Set());
 
-  // ── Notfall state ──────────────────────────────────────────────────────────
-  const [notfaelle,   setNotfaelle]    = useState([]);
+  // ── Notfall ────────────────────────────────────────────────────────────────
+  const [notfaelle, setNotfaelle] = useState([]);
 
-  // ── Kleider state ──────────────────────────────────────────────────────────
-  const [inserate,    setInserate]     = useState([]);
+  // ── Kleider ────────────────────────────────────────────────────────────────
+  const [inserate, setInserate] = useState([]);
+
+  // ── Draussen ──────────────────────────────────────────────────────────────
+  const [draussenList, setDraussenList] = useState([]);
+
+  // ── Kalender ──────────────────────────────────────────────────────────────
+  const [events, setEvents] = useState([]);
+
+  // ── Profile ────────────────────────────────────────────────────────────────
+  const [kinderMap,    setKinderMap]    = useState({});
+  const [groupCode,    setGroupCode]    = useState('NEST-7K3M');
+  const [profileEmoji, setProfileEmoji] = useState('🌸');
 
   const [loaded, setLoaded] = useState(false);
 
-  // ── Load from storage on mount ────────────────────────────────────────────
+  // ── Load from storage ─────────────────────────────────────────────────────
   useEffect(() => {
     (async () => {
       const [
         savedThreads, savedAnswers, savedSeen, savedHint, savedName,
         savedNotfaelle, savedInserate,
+        savedDraussen, savedEvents, savedKinder,
+        savedBookmarks, savedPinned, savedCode, savedEmoji,
       ] = await Promise.all([
         storage.loadThreads(),
         storage.loadAnswers(),
@@ -138,13 +192,20 @@ export function TratschProvider({ children }) {
         storage.loadUserName(),
         storage.loadNotfaelle(),
         storage.loadInserate(),
+        storage.loadDraussen(),
+        storage.loadEvents(),
+        storage.loadKinderMap(),
+        storage.loadBookmarks(),
+        storage.loadPinnedIds(),
+        storage.loadGroupCode(),
+        storage.loadProfileEmoji(),
       ]);
 
       const isFirstRun = savedThreads === null;
 
       const rawThreads = isFirstRun
         ? SEED_THREADS
-        : savedThreads.map(t => ({ tag: null, solved: false, imageUri: null, poll: null, ...t }));
+        : savedThreads.map(t => ({ tag: null, solved: false, imageUri: null, poll: null, pinned: false, ...t }));
 
       const rawAnswers = isFirstRun || savedAnswers === null
         ? SEED_ANSWERS
@@ -159,19 +220,35 @@ export function TratschProvider({ children }) {
       setSeenIds(isFirstRun ? new Set(SEED_THREADS.map(t => t.id)) : new Set(savedSeen));
       setHintShown(savedHint);
       setCurrentUser(savedName ?? 'Du');
-
       setNotfaelle(savedNotfaelle ?? SEED_NOTFAELLE);
-      setInserate(savedInserate  ?? SEED_INSERATE);
+      setInserate(savedInserate ?? SEED_INSERATE);
+
+      // Filter expired draussen entries (>3h)
+      const now = Date.now();
+      const rawDraussen = savedDraussen ?? SEED_DRAUSSEN;
+      setDraussenList(rawDraussen.filter(d => now - d.seit < 3 * 3600000));
+
+      setEvents(savedEvents ?? SEED_EVENTS);
+      setKinderMap(savedKinder ?? SEED_KINDER);
+      setBookmarks(new Set(savedBookmarks ?? []));
+      setPinnedIds(new Set(savedPinned ?? SEED_THREADS.filter(t => t.pinned).map(t => t.id)));
+      setGroupCode(savedCode ?? 'NEST-7K3M');
+      setProfileEmoji(savedEmoji ?? '🌸');
 
       setLoaded(true);
     })();
   }, []);
 
-  // ── Persist on change ─────────────────────────────────────────────────────
-  useEffect(() => { if (loaded) storage.saveThreads(threads);     }, [threads,    loaded]);
-  useEffect(() => { if (loaded) storage.saveAnswers(answersMap);   }, [answersMap, loaded]);
-  useEffect(() => { if (loaded) storage.saveNotfaelle(notfaelle);  }, [notfaelle,  loaded]);
-  useEffect(() => { if (loaded) storage.saveInserate(inserate);    }, [inserate,   loaded]);
+  // ── Persist ───────────────────────────────────────────────────────────────
+  useEffect(() => { if (loaded) storage.saveThreads(threads);       }, [threads,      loaded]);
+  useEffect(() => { if (loaded) storage.saveAnswers(answersMap);     }, [answersMap,   loaded]);
+  useEffect(() => { if (loaded) storage.saveNotfaelle(notfaelle);    }, [notfaelle,    loaded]);
+  useEffect(() => { if (loaded) storage.saveInserate(inserate);      }, [inserate,     loaded]);
+  useEffect(() => { if (loaded) storage.saveDraussen(draussenList);  }, [draussenList, loaded]);
+  useEffect(() => { if (loaded) storage.saveEvents(events);          }, [events,       loaded]);
+  useEffect(() => { if (loaded) storage.saveKinderMap(kinderMap);    }, [kinderMap,    loaded]);
+  useEffect(() => { if (loaded) storage.saveBookmarks([...bookmarks]);}, [bookmarks,   loaded]);
+  useEffect(() => { if (loaded) storage.savePinnedIds([...pinnedIds]);}, [pinnedIds,   loaded]);
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const members = useMemo(() => {
@@ -181,6 +258,22 @@ export function TratschProvider({ children }) {
     return [...set];
   }, [threads, answersMap]);
 
+  // Threads: pinned first, then by ts
+  const sortedThreads = useMemo(() => {
+    return [...threads].sort((a, b) => {
+      const aPin = pinnedIds.has(a.id) ? 1 : 0;
+      const bPin = pinnedIds.has(b.id) ? 1 : 0;
+      if (aPin !== bPin) return bPin - aPin;
+      return b.ts - a.ts;
+    });
+  }, [threads, pinnedIds]);
+
+  // Active draussen (non-expired)
+  const activeDraussen = useMemo(() => {
+    const now = Date.now();
+    return draussenList.filter(d => now - d.seit < 3 * 3600000);
+  }, [draussenList]);
+
   // ═══════════════════════════════════════════════════════════════════════════
   // TRATSCH ACTIONS
   // ═══════════════════════════════════════════════════════════════════════════
@@ -189,7 +282,7 @@ export function TratschProvider({ children }) {
     const t = {
       id: Date.now().toString(), autor: currentUser,
       titel: titel.trim(), text: (text ?? '').trim(),
-      ts: Date.now(), tag: tag ?? null, solved: false,
+      ts: Date.now(), tag: tag ?? null, solved: false, pinned: false,
       imageUri: imageUri ?? null, poll: poll ?? null,
     };
     setThreads(prev => [t, ...prev]);
@@ -204,10 +297,32 @@ export function TratschProvider({ children }) {
   const deleteThread = useCallback((id) => {
     setThreads(prev => prev.filter(t => t.id !== id));
     setAnswersMap(prev => { const next = { ...prev }; delete next[id]; return next; });
+    setBookmarks(prev => { const next = new Set(prev); next.delete(id); return next; });
+    setPinnedIds(prev => { const next = new Set(prev); next.delete(id); return next; });
   }, []);
 
   const markSolved = useCallback((threadId) => {
     setThreads(prev => prev.map(t => t.id === threadId ? { ...t, solved: !t.solved } : t));
+  }, []);
+
+  const togglePin = useCallback((threadId) => {
+    setPinnedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(threadId)) next.delete(threadId);
+      else next.add(threadId);
+      storage.savePinnedIds([...next]);
+      return next;
+    });
+  }, []);
+
+  const toggleBookmark = useCallback((threadId) => {
+    setBookmarks(prev => {
+      const next = new Set(prev);
+      if (next.has(threadId)) next.delete(threadId);
+      else next.add(threadId);
+      storage.saveBookmarks([...next]);
+      return next;
+    });
   }, []);
 
   const votePoll = useCallback((threadId, optionIndex) => {
@@ -325,19 +440,101 @@ export function TratschProvider({ children }) {
     setInserate(prev => prev.map(i => i.id === id ? { ...i, vergeben: !i.vergeben } : i));
   }, []);
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // DRAUSSEN ACTIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  const geheDraus = useCallback((ort) => {
+    setDraussenList(prev => {
+      const filtered = prev.filter(d => d.autor !== currentUser);
+      return [...filtered, { id: Date.now().toString(), autor: currentUser, ort, seit: Date.now() }];
+    });
+  }, [currentUser]);
+
+  const geheRein = useCallback(() => {
+    setDraussenList(prev => prev.filter(d => d.autor !== currentUser));
+  }, [currentUser]);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // KALENDER ACTIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  const addEvent = useCallback(({ titel, beschreibung, datum, uhrzeit, ort, kategorie }) => {
+    const ev = {
+      id: Date.now().toString(), autor: currentUser,
+      titel: titel.trim(),
+      beschreibung: (beschreibung ?? '').trim(),
+      datum, uhrzeit: uhrzeit ?? null,
+      ort: (ort ?? '').trim() || null,
+      kategorie: kategorie ?? 'sonstiges',
+      teilnehmer: [currentUser],
+      ts: Date.now(),
+    };
+    setEvents(prev => [...prev, ev].sort((a, b) => new Date(a.datum) - new Date(b.datum)));
+  }, [currentUser]);
+
+  const deleteEvent = useCallback((id) => {
+    setEvents(prev => prev.filter(e => e.id !== id));
+  }, []);
+
+  const toggleEventTeilnehmer = useCallback((id) => {
+    setEvents(prev => prev.map(ev => {
+      if (ev.id !== id) return ev;
+      const already = ev.teilnehmer.includes(currentUser);
+      return {
+        ...ev,
+        teilnehmer: already
+          ? ev.teilnehmer.filter(u => u !== currentUser)
+          : [...ev.teilnehmer, currentUser],
+      };
+    }));
+  }, [currentUser]);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PROFIL ACTIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  const updateKinder = useCallback((kinder) => {
+    setKinderMap(prev => {
+      const next = { ...prev, [currentUser]: kinder };
+      storage.saveKinderMap(next);
+      return next;
+    });
+  }, [currentUser]);
+
+  const updateGroupCode = useCallback((code) => {
+    setGroupCode(code);
+    storage.saveGroupCode(code);
+  }, []);
+
+  const updateProfileEmoji = useCallback((emoji) => {
+    setProfileEmoji(emoji);
+    storage.saveProfileEmoji(emoji);
+  }, []);
+
+  // ─────────────────────────────────────────────────────────────────────────
   return (
     <AppContext.Provider value={{
       // shared
       currentUser, loaded, members, updateUserName,
       // tratsch
-      threads, answersMap, seenIds, hintShown, unreadCount,
+      threads: sortedThreads, answersMap, seenIds, hintShown, unreadCount,
+      bookmarks, pinnedIds,
       addThread, deleteThread, addAnswer,
       toggleReaction, markSeen, markHintShown,
-      markSolved, votePoll,
+      markSolved, votePoll, togglePin, toggleBookmark,
       // notfall
       notfaelle, addNotfall, toggleHelfer, toggleGedeckt, deleteNotfall,
       // kleider
       inserate, addInserat, updateInserat, toggleInteresse, toggleVergeben,
+      // draussen
+      draussenList: activeDraussen, geheDraus, geheRein,
+      // kalender
+      events, addEvent, deleteEvent, toggleEventTeilnehmer,
+      // profil
+      kinderMap, updateKinder,
+      groupCode, updateGroupCode,
+      profileEmoji, updateProfileEmoji,
     }}>
       {children}
     </AppContext.Provider>

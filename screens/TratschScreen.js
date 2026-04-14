@@ -15,6 +15,7 @@ export default function TratschScreen({ navigation, route }) {
   const {
     threads, answersMap, seenIds,
     addThread, deleteThread, markSeen, currentUser,
+    bookmarks, pinnedIds, toggleBookmark, togglePin,
   } = useTratsch();
   const headerHeight = useHeaderHeight();
 
@@ -22,6 +23,7 @@ export default function TratschScreen({ navigation, route }) {
   const cameFromDashboard = useRef(false);
   const [search,    setSearch]    = useState('');
   const [tagFilter, setTagFilter] = useState(null);
+  const [showSaved, setShowSaved] = useState(false);
 
   const [showForm,      setShowForm]      = useState(false);
   const [titel,         setTitel]         = useState('');
@@ -32,7 +34,7 @@ export default function TratschScreen({ navigation, route }) {
   const [pollQuestion,  setPollQuestion]  = useState('');
   const [pollOptions,   setPollOptions]   = useState(['', '']);
 
-  // ── Deep-link from dashboard: open a specific thread directly ─────────────
+  // Deep-link from dashboard
   useEffect(() => {
     const id = route?.params?.openThreadId;
     if (!id) return;
@@ -45,10 +47,11 @@ export default function TratschScreen({ navigation, route }) {
     navigation.setParams({ openThreadId: undefined });
   }, [route?.params?.openThreadId]);
 
-  // ── Filtering ─────────────────────────────────────────────────────────────
+  // Filtering
   const filtered = useMemo(() => {
     let result = threads;
-    if (tagFilter) result = result.filter(t => t.tag === tagFilter);
+    if (showSaved)        result = result.filter(t => bookmarks.has(t.id));
+    if (tagFilter)        result = result.filter(t => t.tag === tagFilter);
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter(t =>
@@ -56,9 +59,8 @@ export default function TratschScreen({ navigation, route }) {
       );
     }
     return result;
-  }, [threads, search, tagFilter]);
+  }, [threads, search, tagFilter, showSaved, bookmarks]);
 
-  // ── Actions ───────────────────────────────────────────────────────────────
   function openThread(thread) {
     markSeen(thread.id);
     setSelected(thread);
@@ -80,7 +82,7 @@ export default function TratschScreen({ navigation, route }) {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Berechtigung benötigt', 'Bitte erlaube den Zugriff auf deine Fotos in den Einstellungen.');
+        Alert.alert('Berechtigung benötigt', 'Bitte erlaube den Zugriff auf deine Fotos.');
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -110,7 +112,6 @@ export default function TratschScreen({ navigation, route }) {
     resetForm();
   }
 
-  // ── Thread detail ─────────────────────────────────────────────────────────
   if (selected) {
     return <ThreadDetailScreen thread={selected} onBack={() => {
       setSelected(null);
@@ -121,7 +122,6 @@ export default function TratschScreen({ navigation, route }) {
     }} />;
   }
 
-  // ── Thread list ───────────────────────────────────────────────────────────
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
@@ -147,22 +147,33 @@ export default function TratschScreen({ navigation, route }) {
           )}
         </View>
 
-        {/* Tag filter bar */}
+        {/* Filter bar with Bookmarks */}
         <ScrollView
           horizontal showsHorizontalScrollIndicator={false}
           style={styles.tagBar} contentContainerStyle={styles.tagBarContent}
         >
           <TouchableOpacity
-            style={[styles.tagChip, !tagFilter && styles.tagChipActive]}
-            onPress={() => setTagFilter(null)}
+            style={[styles.tagChip, !tagFilter && !showSaved && styles.tagChipActive]}
+            onPress={() => { setTagFilter(null); setShowSaved(false); }}
           >
-            <Text style={[styles.tagChipText, !tagFilter && styles.tagChipTextActive]}>Alle</Text>
+            <Text style={[styles.tagChipText, !tagFilter && !showSaved && styles.tagChipTextActive]}>Alle</Text>
           </TouchableOpacity>
+
+          {/* Bookmarks filter */}
+          <TouchableOpacity
+            style={[styles.tagChip, showSaved && styles.tagChipBookmark]}
+            onPress={() => { setShowSaved(v => !v); setTagFilter(null); }}
+          >
+            <Text style={[styles.tagChipText, showSaved && styles.tagChipTextBookmark]}>
+              🔖 Gespeichert {bookmarks.size > 0 ? `(${bookmarks.size})` : ''}
+            </Text>
+          </TouchableOpacity>
+
           {TAGS.map(tag => (
             <TouchableOpacity
               key={tag.id}
               style={[styles.tagChip, tagFilter === tag.id && styles.tagChipActive]}
-              onPress={() => setTagFilter(tagFilter === tag.id ? null : tag.id)}
+              onPress={() => { setTagFilter(tagFilter === tag.id ? null : tag.id); setShowSaved(false); }}
             >
               <Text style={[styles.tagChipText, tagFilter === tag.id && styles.tagChipTextActive]}>
                 {tag.emoji} {tag.label}
@@ -182,10 +193,17 @@ export default function TratschScreen({ navigation, route }) {
             const answerCount = (answersMap[item.id] ?? []).length;
             const tag         = tagById(item.tag);
             const isOwn       = item.autor === currentUser;
+            const isPinned    = pinnedIds.has(item.id);
+            const isBookmarked= bookmarks.has(item.id);
 
             return (
               <TouchableOpacity
-                style={[styles.card, isUnread && styles.cardUnread, item.solved && styles.cardSolved]}
+                style={[
+                  styles.card,
+                  isUnread && styles.cardUnread,
+                  item.solved && styles.cardSolved,
+                  isPinned && styles.cardPinned,
+                ]}
                 onPress={() => openThread(item)}
                 onLongPress={isOwn ? () => confirmDelete(item) : undefined}
                 delayLongPress={600}
@@ -197,11 +215,36 @@ export default function TratschScreen({ navigation, route }) {
                   </View>
                   <View style={{ flex: 1 }}>
                     <View style={styles.titleRow}>
+                      {isPinned && <Text style={styles.pinIcon}>📌</Text>}
                       <Text style={styles.cardTitel} numberOfLines={1}>{item.titel}</Text>
-                      {item.solved  && <Text style={styles.solvedBadge}>✅</Text>}
+                      {item.solved && <Text style={styles.solvedBadge}>✅</Text>}
                       {isUnread && !item.solved && <View style={styles.unreadDot} />}
                     </View>
                     <Text style={styles.cardMeta}>{item.autor} · {relativeTime(item.ts)}</Text>
+                  </View>
+
+                  {/* Actions: Bookmark + Pin */}
+                  <View style={styles.cardActions}>
+                    <TouchableOpacity
+                      onPress={() => toggleBookmark(item.id)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      style={styles.actionBtn}
+                    >
+                      <Text style={[styles.actionIcon, isBookmarked && styles.actionIconActive]}>
+                        {isBookmarked ? '🔖' : '🏷️'}
+                      </Text>
+                    </TouchableOpacity>
+                    {isOwn && (
+                      <TouchableOpacity
+                        onPress={() => togglePin(item.id)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        style={styles.actionBtn}
+                      >
+                        <Text style={[styles.actionIcon, isPinned && styles.actionIconActive]}>
+                          📌
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 </View>
 
@@ -233,10 +276,16 @@ export default function TratschScreen({ navigation, route }) {
           }}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Text style={styles.emptyEmoji}>{search || tagFilter ? '🔍' : '💬'}</Text>
-              <Text style={styles.emptyTitle}>{search || tagFilter ? 'Nichts gefunden' : 'Noch keine Themen'}</Text>
+              <Text style={styles.emptyEmoji}>{showSaved ? '🔖' : search || tagFilter ? '🔍' : '💬'}</Text>
+              <Text style={styles.emptyTitle}>
+                {showSaved ? 'Noch nichts gespeichert' : search || tagFilter ? 'Nichts gefunden' : 'Noch keine Themen'}
+              </Text>
               <Text style={styles.emptySub}>
-                {search ? `Keine Treffer für "${search}"` : tagFilter ? 'Keine Themen in dieser Kategorie' : 'Erstell das erste Thema für eure Gruppe!'}
+                {showSaved
+                  ? 'Tippe auf 🏷️ bei einem Thread um ihn zu speichern'
+                  : search ? `Keine Treffer für "${search}"`
+                  : tagFilter ? 'Keine Themen in dieser Kategorie'
+                  : 'Erstell das erste Thema für eure Gruppe!'}
               </Text>
             </View>
           }
@@ -271,15 +320,6 @@ export default function TratschScreen({ navigation, route }) {
                   <Text style={[styles.extraBtnText, showPoll && styles.extraBtnTextActive]}>📊 Umfrage</Text>
                 </TouchableOpacity>
               </View>
-
-              {!!imageUri && (
-                <View style={styles.imagePreviewWrap}>
-                  <Image source={{ uri: imageUri }} style={styles.imagePreview} resizeMode="cover" />
-                  <TouchableOpacity style={styles.imageRemoveBtn} onPress={() => setImageUri(null)}>
-                    <Text style={styles.imageRemoveText}>✕</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
 
               {showPoll && (
                 <View style={styles.pollForm}>
@@ -339,10 +379,12 @@ const styles = StyleSheet.create({
 
   tagBar:        { maxHeight: 44 },
   tagBarContent: { paddingHorizontal: 12, paddingVertical: 6, gap: 6, flexDirection: 'row', alignItems: 'center' },
-  tagChip:       { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: colors.bgAlt, borderWidth: 0.5, borderColor: colors.border },
-  tagChipActive: { backgroundColor: colors.primaryLight, borderColor: colors.primary },
-  tagChipText:   { fontSize: 12, color: colors.textMid },
-  tagChipTextActive: { color: colors.primary, fontWeight: '500' },
+  tagChip:         { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: colors.bgAlt, borderWidth: 0.5, borderColor: colors.border },
+  tagChipActive:   { backgroundColor: colors.primaryLight, borderColor: colors.primary },
+  tagChipBookmark: { backgroundColor: '#FFF8E1', borderColor: '#FFB300' },
+  tagChipText:     { fontSize: 12, color: colors.textMid },
+  tagChipTextActive:   { color: colors.primary, fontWeight: '500' },
+  tagChipTextBookmark: { color: '#6D4C00', fontWeight: '500' },
 
   list:       { padding: 12, gap: 10, paddingBottom: 90 },
   listCenter: { flex: 1, justifyContent: 'center' },
@@ -350,14 +392,21 @@ const styles = StyleSheet.create({
   card:        { backgroundColor: colors.bgAlt, borderRadius: 14, padding: 14, borderWidth: 0.5, borderColor: colors.border, gap: 8 },
   cardUnread:  { borderColor: colors.primaryMid, backgroundColor: '#fffafc' },
   cardSolved:  { opacity: 0.75 },
+  cardPinned:  { borderColor: '#FFB300', borderWidth: 1, backgroundColor: '#FFFDF5' },
   cardRow:     { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  titleRow:    { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  titleRow:    { flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 },
+  pinIcon:     { fontSize: 12 },
   cardTitel:   { fontSize: 14, fontWeight: '500', color: colors.text, flex: 1 },
   solvedBadge: { fontSize: 14 },
   unreadDot:   { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary, flexShrink: 0 },
   cardMeta:    { fontSize: 11, color: colors.textMuted, marginTop: 2 },
   cardPreview: { fontSize: 13, color: colors.textLight, lineHeight: 19 },
   cardImage:   { width: '100%', height: 140, borderRadius: 10 },
+
+  cardActions: { flexDirection: 'row', gap: 4, alignItems: 'center', flexShrink: 0 },
+  actionBtn:   { padding: 4 },
+  actionIcon:  { fontSize: 14, opacity: 0.4 },
+  actionIconActive: { opacity: 1 },
 
   pollPreview:    { backgroundColor: colors.primaryLight, borderRadius: 8, padding: 10, gap: 2 },
   pollPreviewText:{ fontSize: 13, color: colors.primary, fontWeight: '500' },
@@ -374,7 +423,7 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', gap: 8 },
   emptyEmoji: { fontSize: 40 },
   emptyTitle: { fontSize: 16, fontWeight: '500', color: colors.textMid },
-  emptySub:   { fontSize: 13, color: colors.textMuted, textAlign: 'center', maxWidth: 240, lineHeight: 20 },
+  emptySub:   { fontSize: 13, color: colors.textMuted, textAlign: 'center', maxWidth: 260, lineHeight: 20 },
 
   form: { maxHeight: '70%', borderTopWidth: 0.5, borderTopColor: colors.border, backgroundColor: colors.bg, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8 },
   formInput:    { backgroundColor: colors.bgAlt, borderWidth: 0.5, borderColor: colors.border, borderRadius: 12, padding: 12, fontSize: 14 },
@@ -386,16 +435,11 @@ const styles = StyleSheet.create({
   formTagChipText:   { fontSize: 12, color: colors.textMid },
   formTagChipTextActive: { color: colors.primary, fontWeight: '500' },
 
-  formExtras:       { flexDirection: 'row', gap: 8 },
-  extraBtn:         { flex: 1, paddingVertical: 8, borderRadius: 10, backgroundColor: colors.bgAlt, borderWidth: 0.5, borderColor: colors.border, alignItems: 'center' },
-  extraBtnActive:   { backgroundColor: colors.primaryLight, borderColor: colors.primary },
+  formExtras:     { flexDirection: 'row', gap: 8 },
+  extraBtn:       { flex: 1, paddingVertical: 8, borderRadius: 10, backgroundColor: colors.bgAlt, borderWidth: 0.5, borderColor: colors.border, alignItems: 'center' },
+  extraBtnActive: { backgroundColor: colors.primaryLight, borderColor: colors.primary },
   extraBtnText:     { fontSize: 13, color: colors.textMid },
   extraBtnTextActive: { color: colors.primary, fontWeight: '500' },
-
-  imagePreviewWrap: { position: 'relative' },
-  imagePreview:     { width: '100%', height: 140, borderRadius: 10 },
-  imageRemoveBtn:   { position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 12, width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
-  imageRemoveText:  { color: '#fff', fontSize: 12, fontWeight: '600' },
 
   pollForm:       { gap: 6, backgroundColor: colors.bgAlt, borderRadius: 12, padding: 12, borderWidth: 0.5, borderColor: colors.border },
   pollOptionRow:  { flexDirection: 'row', alignItems: 'center', gap: 6 },

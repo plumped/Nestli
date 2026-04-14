@@ -341,14 +341,14 @@ const fm = StyleSheet.create({
 });
 
 // ─── Notfall Card ─────────────────────────────────────────────────────────────
-function NotfallCard({ item, currentUser, onToggleHelfer, onDelete, onToggleGedeckt }) {
+function NotfallCard({ item, index, currentUser, onToggleHelfer, onDelete, onToggleGedeckt }) {
   const type     = typeById(item.type);
   const isOwn    = item.autor === currentUser;
   const ichHelfe = item.helfer.includes(currentUser);
   const wannStr  = item.wann ? formatDate(new Date(item.wann)) : null;
 
   return (
-    <View style={[cd.wrap, item.gedeckt && cd.wrapDim]}>
+    <View style={[cd.wrap, index % 2 === 1 && cd.wrapAlt, item.gedeckt && cd.wrapDim]}>
       {/* Top */}
       <View style={cd.top}>
         <View style={[cd.icon, item.gedeckt && cd.iconDim]}>
@@ -452,7 +452,8 @@ function NotfallCard({ item, currentUser, onToggleHelfer, onDelete, onToggleGede
 }
 
 const cd = StyleSheet.create({
-  wrap:     { backgroundColor: colors.bgAlt, borderRadius: 16, padding: 16, borderWidth: 0.5, borderColor: colors.border, gap: 10 },
+  wrap:     { backgroundColor: colors.bgAlt, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.primary, gap: 10 },
+  wrapAlt:  {},
   wrapDim:  { opacity: 0.6 },
   top:      { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   icon:     { width: 46, height: 46, borderRadius: 13, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
@@ -589,9 +590,10 @@ export default function NotfallScreen() {
         keyExtractor={item => item.id}
         contentContainerStyle={[sc.list, filtered.length === 0 && sc.listCenter]}
         keyboardShouldPersistTaps="handled"
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <NotfallCard
             item={item}
+            index={index}
             currentUser={currentUser}
             onToggleHelfer={toggleHelfer}
             onDelete={deleteNotfall}

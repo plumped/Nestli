@@ -6,6 +6,8 @@ const KEY = {
   seen:      'nestli_seen_ids',
   hint:      'nestli_swipe_hint',
   userName:  'nestli_user_name',
+  notfaelle: 'nestli_notfaelle_v1',
+  inserate:  'nestli_inserate_v1',
 };
 
 async function get(key, fallback) {
@@ -20,14 +22,18 @@ async function set(key, value) {
 }
 
 export const storage = {
-  loadThreads:  () => get(KEY.threads, null),
-  saveThreads:  (v) => set(KEY.threads, v),
-  loadAnswers:  () => get(KEY.answers, null),
-  saveAnswers:  (v) => set(KEY.answers, v),
-  loadSeen:     () => get(KEY.seen, []),
-  saveSeen:     (v) => set(KEY.seen, v),
-  loadHint:     () => get(KEY.hint, false),
-  saveHint:     (v) => set(KEY.hint, v),
-  loadUserName: () => get(KEY.userName, 'Du'),
-  saveUserName: (v) => set(KEY.userName, v),
+  loadThreads:   () => get(KEY.threads,   null),
+  saveThreads:   (v) => set(KEY.threads,  v),
+  loadAnswers:   () => get(KEY.answers,   null),
+  saveAnswers:   (v) => set(KEY.answers,  v),
+  loadSeen:      () => get(KEY.seen,      []),
+  saveSeen:      (v) => set(KEY.seen,     v),
+  loadHint:      () => get(KEY.hint,      false),
+  saveHint:      (v) => set(KEY.hint,     v),
+  loadUserName:  () => get(KEY.userName,  'Du'),
+  saveUserName:  (v) => set(KEY.userName, v),
+  loadNotfaelle: () => get(KEY.notfaelle, null),
+  saveNotfaelle: (v) => set(KEY.notfaelle, v),
+  loadInserate:  () => get(KEY.inserate,  null),
+  saveInserate:  (v) => set(KEY.inserate, v),
 };

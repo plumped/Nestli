@@ -2,7 +2,7 @@ import {
   View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Alert,
   KeyboardAvoidingView, Platform, ScrollView, Image,
 } from 'react-native';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useHeaderHeight } from '@react-navigation/elements';
 import * as ImagePicker from 'expo-image-picker';
 import { useTratsch } from '../context/TratschContext';
@@ -11,21 +11,17 @@ import { relativeTime } from '../utils/time';
 import { TAGS, tagById } from '../utils/tags';
 import { colors } from '../theme';
 
-export default function TratschScreen() {
+export default function TratschScreen({ navigation, route }) {
   const {
     threads, answersMap, seenIds,
     addThread, deleteThread, markSeen, currentUser,
   } = useTratsch();
   const headerHeight = useHeaderHeight();
 
-  // Navigation
   const [selected,  setSelected]  = useState(null);
-
-  // Filters
   const [search,    setSearch]    = useState('');
   const [tagFilter, setTagFilter] = useState(null);
 
-  // New thread form
   const [showForm,      setShowForm]      = useState(false);
   const [titel,         setTitel]         = useState('');
   const [body,          setBody]          = useState('');
@@ -34,6 +30,19 @@ export default function TratschScreen() {
   const [showPoll,      setShowPoll]      = useState(false);
   const [pollQuestion,  setPollQuestion]  = useState('');
   const [pollOptions,   setPollOptions]   = useState(['', '']);
+
+  // ── Deep-link from dashboard: open a specific thread directly ─────────────
+  useEffect(() => {
+    const id = route?.params?.openThreadId;
+    if (!id) return;
+    const thread = threads.find(t => t.id === id);
+    if (thread) {
+      markSeen(thread.id);
+      setSelected(thread);
+    }
+    // Clear param so back-navigation doesn't re-trigger
+    navigation.setParams({ openThreadId: undefined });
+  }, [route?.params?.openThreadId]);
 
   // ── Filtering ─────────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
@@ -55,7 +64,7 @@ export default function TratschScreen() {
   }
 
   function confirmDelete(thread) {
-    if (thread.autor !== currentUser) return; // Only own threads
+    if (thread.autor !== currentUser) return;
     Alert.alert(
       'Thread löschen?',
       `"${thread.titel}" wirklich entfernen?`,
@@ -70,17 +79,12 @@ export default function TratschScreen() {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert(
-          'Berechtigung benötigt',
-          'Bitte erlaube den Zugriff auf deine Fotos in den Einstellungen.'
-        );
+        Alert.alert('Berechtigung benötigt', 'Bitte erlaube den Zugriff auf deine Fotos in den Einstellungen.');
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        quality: 0.7,
-        allowsEditing: true,
-        aspect: [4, 3],
+        quality: 0.7, allowsEditing: true, aspect: [4, 3],
       });
       if (!result.canceled) setImageUri(result.assets[0].uri);
     } catch {
@@ -99,10 +103,7 @@ export default function TratschScreen() {
     const validOptions = pollOptions.filter(o => o.trim());
     const poll =
       showPoll && pollQuestion.trim() && validOptions.length >= 2
-        ? {
-            question: pollQuestion.trim(),
-            options: validOptions.map(text => ({ text: text.trim(), voters: [] })),
-          }
+        ? { question: pollQuestion.trim(), options: validOptions.map(text => ({ text: text.trim(), voters: [] })) }
         : null;
     addThread(titel, body, formTag, imageUri, poll);
     resetForm();
@@ -122,7 +123,7 @@ export default function TratschScreen() {
     >
       <View style={styles.container}>
 
-        {/* ── Search bar ── */}
+        {/* Search bar */}
         <View style={styles.searchRow}>
           <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
@@ -139,12 +140,10 @@ export default function TratschScreen() {
           )}
         </View>
 
-        {/* ── Tag filter bar ── */}
+        {/* Tag filter bar */}
         <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.tagBar}
-          contentContainerStyle={styles.tagBarContent}
+          horizontal showsHorizontalScrollIndicator={false}
+          style={styles.tagBar} contentContainerStyle={styles.tagBarContent}
         >
           <TouchableOpacity
             style={[styles.tagChip, !tagFilter && styles.tagChipActive]}
@@ -165,7 +164,7 @@ export default function TratschScreen() {
           ))}
         </ScrollView>
 
-        {/* ── Thread list ── */}
+        {/* Thread list */}
         <FlatList
           data={filtered}
           keyExtractor={item => item.id}
@@ -179,17 +178,12 @@ export default function TratschScreen() {
 
             return (
               <TouchableOpacity
-                style={[
-                  styles.card,
-                  isUnread  && styles.cardUnread,
-                  item.solved && styles.cardSolved,
-                ]}
+                style={[styles.card, isUnread && styles.cardUnread, item.solved && styles.cardSolved]}
                 onPress={() => openThread(item)}
                 onLongPress={isOwn ? () => confirmDelete(item) : undefined}
                 delayLongPress={600}
                 activeOpacity={0.75}
               >
-                {/* Card header row */}
                 <View style={styles.cardRow}>
                   <View style={styles.avatar}>
                     <Text style={styles.avatarText}>{item.autor[0]}</Text>
@@ -204,17 +198,12 @@ export default function TratschScreen() {
                   </View>
                 </View>
 
-                {/* Image preview */}
                 {!!item.imageUri && (
                   <Image source={{ uri: item.imageUri }} style={styles.cardImage} resizeMode="cover" />
                 )}
-
-                {/* Text preview (hide if image present) */}
                 {!!item.text && !item.imageUri && (
                   <Text style={styles.cardPreview} numberOfLines={2}>{item.text}</Text>
                 )}
-
-                {/* Poll preview */}
                 {item.poll && (
                   <View style={styles.pollPreview}>
                     <Text style={styles.pollPreviewText}>📊 {item.poll.question}</Text>
@@ -224,16 +213,13 @@ export default function TratschScreen() {
                   </View>
                 )}
 
-                {/* Footer: tag + reply count */}
                 <View style={styles.cardFooter}>
                   {tag ? (
                     <View style={styles.tagPill}>
                       <Text style={styles.tagPillText}>{tag.emoji} {tag.label}</Text>
                     </View>
                   ) : <View />}
-                  <Text style={styles.replyCount}>
-                    💬 {answerCount} Antwort{answerCount !== 1 ? 'en' : ''}
-                  </Text>
+                  <Text style={styles.replyCount}>💬 {answerCount} Antwort{answerCount !== 1 ? 'en' : ''}</Text>
                 </View>
               </TouchableOpacity>
             );
@@ -241,34 +227,19 @@ export default function TratschScreen() {
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Text style={styles.emptyEmoji}>{search || tagFilter ? '🔍' : '💬'}</Text>
-              <Text style={styles.emptyTitle}>
-                {search || tagFilter ? 'Nichts gefunden' : 'Noch keine Themen'}
-              </Text>
+              <Text style={styles.emptyTitle}>{search || tagFilter ? 'Nichts gefunden' : 'Noch keine Themen'}</Text>
               <Text style={styles.emptySub}>
-                {search
-                  ? `Keine Treffer für "${search}"`
-                  : tagFilter
-                  ? 'Keine Themen in dieser Kategorie'
-                  : 'Erstell das erste Thema für eure Gruppe!'}
+                {search ? `Keine Treffer für "${search}"` : tagFilter ? 'Keine Themen in dieser Kategorie' : 'Erstell das erste Thema für eure Gruppe!'}
               </Text>
             </View>
           }
         />
 
-        {/* ── New thread form ── */}
+        {/* New thread form */}
         {showForm && (
           <View style={styles.form}>
-            <ScrollView
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ gap: 8, paddingBottom: 8 }}
-            >
-              {/* Tag selector */}
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.formTagBar}
-              >
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 8 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.formTagBar}>
                 {TAGS.map(tag => (
                   <TouchableOpacity
                     key={tag.id}
@@ -282,41 +253,18 @@ export default function TratschScreen() {
                 ))}
               </ScrollView>
 
-              <TextInput
-                style={styles.formInput}
-                placeholder="Titel deines Themas *"
-                value={titel}
-                onChangeText={setTitel}
-              />
-              <TextInput
-                style={[styles.formInput, styles.formTextarea]}
-                placeholder="Beschreibe dein Anliegen... (optional)"
-                value={body}
-                onChangeText={setBody}
-                multiline
-              />
+              <TextInput style={styles.formInput} placeholder="Titel deines Themas *" value={titel} onChangeText={setTitel} />
+              <TextInput style={[styles.formInput, styles.formTextarea]} placeholder="Beschreibe dein Anliegen... (optional)" value={body} onChangeText={setBody} multiline />
 
-              {/* Extra actions: photo + poll */}
               <View style={styles.formExtras}>
-                <TouchableOpacity
-                  style={[styles.extraBtn, !!imageUri && styles.extraBtnActive]}
-                  onPress={pickImage}
-                >
-                  <Text style={[styles.extraBtnText, !!imageUri && styles.extraBtnTextActive]}>
-                    📷 Foto{imageUri ? ' ✓' : ''}
-                  </Text>
+                <TouchableOpacity style={[styles.extraBtn, !!imageUri && styles.extraBtnActive]} onPress={pickImage}>
+                  <Text style={[styles.extraBtnText, !!imageUri && styles.extraBtnTextActive]}>📷 Foto{imageUri ? ' ✓' : ''}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.extraBtn, showPoll && styles.extraBtnActive]}
-                  onPress={() => setShowPoll(p => !p)}
-                >
-                  <Text style={[styles.extraBtnText, showPoll && styles.extraBtnTextActive]}>
-                    📊 Umfrage
-                  </Text>
+                <TouchableOpacity style={[styles.extraBtn, showPoll && styles.extraBtnActive]} onPress={() => setShowPoll(p => !p)}>
+                  <Text style={[styles.extraBtnText, showPoll && styles.extraBtnTextActive]}>📊 Umfrage</Text>
                 </TouchableOpacity>
               </View>
 
-              {/* Image preview */}
               {!!imageUri && (
                 <View style={styles.imagePreviewWrap}>
                   <Image source={{ uri: imageUri }} style={styles.imagePreview} resizeMode="cover" />
@@ -326,61 +274,37 @@ export default function TratschScreen() {
                 </View>
               )}
 
-              {/* Poll builder */}
               {showPoll && (
                 <View style={styles.pollForm}>
-                  <TextInput
-                    style={styles.formInput}
-                    placeholder="Frage der Umfrage *"
-                    value={pollQuestion}
-                    onChangeText={setPollQuestion}
-                  />
+                  <TextInput style={styles.formInput} placeholder="Frage der Umfrage *" value={pollQuestion} onChangeText={setPollQuestion} />
                   {pollOptions.map((opt, i) => (
                     <View key={i} style={styles.pollOptionRow}>
                       <TextInput
                         style={[styles.formInput, { flex: 1 }]}
                         placeholder={`Option ${i + 1}${i < 2 ? ' *' : ''}`}
                         value={opt}
-                        onChangeText={v => {
-                          const next = [...pollOptions];
-                          next[i] = v;
-                          setPollOptions(next);
-                        }}
+                        onChangeText={v => { const next = [...pollOptions]; next[i] = v; setPollOptions(next); }}
                       />
                       {pollOptions.length > 2 && (
-                        <TouchableOpacity
-                          style={styles.pollRemoveBtn}
-                          onPress={() => setPollOptions(prev => prev.filter((_, j) => j !== i))}
-                        >
+                        <TouchableOpacity style={styles.pollRemoveBtn} onPress={() => setPollOptions(prev => prev.filter((_, j) => j !== i))}>
                           <Text style={styles.pollRemoveText}>✕</Text>
                         </TouchableOpacity>
                       )}
                     </View>
                   ))}
                   {pollOptions.length < 4 && (
-                    <TouchableOpacity
-                      style={styles.addOptionBtn}
-                      onPress={() => setPollOptions(prev => [...prev, ''])}
-                    >
+                    <TouchableOpacity style={styles.addOptionBtn} onPress={() => setPollOptions(prev => [...prev, ''])}>
                       <Text style={styles.addOptionText}>+ Option hinzufügen</Text>
                     </TouchableOpacity>
                   )}
                 </View>
               )}
 
-              {/* Form actions */}
               <View style={styles.formActions}>
-                <TouchableOpacity
-                  style={[styles.formBtn, styles.formBtnSecondary]}
-                  onPress={resetForm}
-                >
+                <TouchableOpacity style={[styles.formBtn, styles.formBtnSecondary]} onPress={resetForm}>
                   <Text style={styles.formBtnSecondaryText}>Abbrechen</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.formBtn, !titel.trim() && styles.formBtnDisabled]}
-                  onPress={erstellen}
-                  disabled={!titel.trim()}
-                >
+                <TouchableOpacity style={[styles.formBtn, !titel.trim() && styles.formBtnDisabled]} onPress={erstellen} disabled={!titel.trim()}>
                   <Text style={styles.formBtnText}>Posten</Text>
                 </TouchableOpacity>
               </View>
@@ -388,7 +312,6 @@ export default function TratschScreen() {
           </View>
         )}
 
-        {/* ── FAB ── */}
         {!showForm && (
           <TouchableOpacity style={styles.fab} onPress={() => setShowForm(true)}>
             <Text style={styles.fabText}>+ Neues Thema</Text>
@@ -402,13 +325,11 @@ export default function TratschScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
 
-  // ── Search ──
   searchRow:   { flexDirection: 'row', alignItems: 'center', margin: 12, marginBottom: 4, backgroundColor: colors.bgAlt, borderRadius: 12, borderWidth: 0.5, borderColor: colors.border, paddingHorizontal: 12, paddingVertical: 8, gap: 8 },
   searchIcon:  { fontSize: 14 },
   searchInput: { flex: 1, fontSize: 14, color: colors.text },
   searchClear: { color: colors.textMuted, fontSize: 13 },
 
-  // ── Tag filter bar ──
   tagBar:        { maxHeight: 44 },
   tagBarContent: { paddingHorizontal: 12, paddingVertical: 6, gap: 6, flexDirection: 'row', alignItems: 'center' },
   tagChip:       { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: colors.bgAlt, borderWidth: 0.5, borderColor: colors.border },
@@ -416,11 +337,9 @@ const styles = StyleSheet.create({
   tagChipText:   { fontSize: 12, color: colors.textMid },
   tagChipTextActive: { color: colors.primary, fontWeight: '500' },
 
-  // ── List ──
   list:       { padding: 12, gap: 10, paddingBottom: 90 },
   listCenter: { flex: 1, justifyContent: 'center' },
 
-  // ── Thread card ──
   card:        { backgroundColor: colors.bgAlt, borderRadius: 14, padding: 14, borderWidth: 0.5, borderColor: colors.border, gap: 8 },
   cardUnread:  { borderColor: colors.primaryMid, backgroundColor: '#fffafc' },
   cardSolved:  { opacity: 0.75 },
@@ -442,30 +361,22 @@ const styles = StyleSheet.create({
   tagPillText: { fontSize: 11, color: colors.primary, fontWeight: '500' },
   replyCount:  { fontSize: 12, color: colors.textMuted },
 
-  // ── Avatar ──
   avatar:     { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: colors.primary, fontWeight: '500', fontSize: 15 },
 
-  // ── Empty state ──
   emptyState: { alignItems: 'center', gap: 8 },
   emptyEmoji: { fontSize: 40 },
   emptyTitle: { fontSize: 16, fontWeight: '500', color: colors.textMid },
   emptySub:   { fontSize: 13, color: colors.textMuted, textAlign: 'center', maxWidth: 240, lineHeight: 20 },
 
-  // ── Form ──
-  form: {
-    maxHeight: '70%',
-    borderTopWidth: 0.5, borderTopColor: colors.border,
-    backgroundColor: colors.bg,
-    paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8,
-  },
+  form: { maxHeight: '70%', borderTopWidth: 0.5, borderTopColor: colors.border, backgroundColor: colors.bg, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8 },
   formInput:    { backgroundColor: colors.bgAlt, borderWidth: 0.5, borderColor: colors.border, borderRadius: 12, padding: 12, fontSize: 14 },
   formTextarea: { minHeight: 60, textAlignVertical: 'top' },
 
-  formTagBar:       { gap: 6, paddingBottom: 4 },
-  formTagChip:      { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, backgroundColor: colors.bgAlt, borderWidth: 0.5, borderColor: colors.border },
-  formTagChipActive:{ backgroundColor: colors.primaryLight, borderColor: colors.primary },
-  formTagChipText:  { fontSize: 12, color: colors.textMid },
+  formTagBar:        { gap: 6, paddingBottom: 4 },
+  formTagChip:       { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, backgroundColor: colors.bgAlt, borderWidth: 0.5, borderColor: colors.border },
+  formTagChipActive: { backgroundColor: colors.primaryLight, borderColor: colors.primary },
+  formTagChipText:   { fontSize: 12, color: colors.textMid },
   formTagChipTextActive: { color: colors.primary, fontWeight: '500' },
 
   formExtras:       { flexDirection: 'row', gap: 8 },
@@ -486,14 +397,13 @@ const styles = StyleSheet.create({
   addOptionBtn:   { paddingVertical: 8, alignItems: 'center' },
   addOptionText:  { color: colors.primary, fontSize: 13, fontWeight: '500' },
 
-  formActions:           { flexDirection: 'row', gap: 8 },
-  formBtn:               { flex: 1, backgroundColor: colors.primary, borderRadius: 12, padding: 12, alignItems: 'center' },
-  formBtnDisabled:       { backgroundColor: colors.border },
-  formBtnSecondary:      { backgroundColor: colors.bgAlt, borderWidth: 0.5, borderColor: colors.border },
-  formBtnText:           { color: '#fff', fontWeight: '500', fontSize: 14 },
-  formBtnSecondaryText:  { color: colors.textLight, fontWeight: '500', fontSize: 14 },
+  formActions:          { flexDirection: 'row', gap: 8 },
+  formBtn:              { flex: 1, backgroundColor: colors.primary, borderRadius: 12, padding: 12, alignItems: 'center' },
+  formBtnDisabled:      { backgroundColor: colors.border },
+  formBtnSecondary:     { backgroundColor: colors.bgAlt, borderWidth: 0.5, borderColor: colors.border },
+  formBtnText:          { color: '#fff', fontWeight: '500', fontSize: 14 },
+  formBtnSecondaryText: { color: colors.textLight, fontWeight: '500', fontSize: 14 },
 
-  // ── FAB ──
   fab:     { position: 'absolute', bottom: 16, right: 16, left: 16, backgroundColor: colors.primary, borderRadius: 14, padding: 14, alignItems: 'center' },
   fabText: { color: '#fff', fontWeight: '500', fontSize: 15 },
 });

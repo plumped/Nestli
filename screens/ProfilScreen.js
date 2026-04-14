@@ -1,8 +1,9 @@
 import {
   View, Text, TouchableOpacity, StyleSheet, TextInput,
-  ScrollView, Alert, Share, Modal, FlatList,
+  ScrollView, Alert, Share, Modal,
 } from 'react-native';
-import { useState, useMemo } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useState } from 'react';
 import { useTratsch } from '../context/TratschContext';
 import { colors } from '../theme';
 
@@ -143,7 +144,7 @@ function ProfilTab({ navigation }) {
       </View>
 
       {/* Emoji Picker Modal */}
-      <Modal visible={showEmojis} animationType="slide" presentationStyle="pageSheet" transparent>
+      <Modal visible={showEmojis} animationType="slide" transparent>
         <View style={pt.emojiOverlay}>
           <View style={pt.emojiSheet}>
             <Text style={pt.emojiTitle}>Dein Avatar</Text>
@@ -350,10 +351,14 @@ export default function ProfilScreen({ navigation }) {
   const [tab, setTab] = useState('profil');
 
   return (
-    <View style={s.container}>
+    <SafeAreaView style={s.container}>
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={s.backBtn}
+          hitSlop={{ top: 16, bottom: 16, left: 16, right: 32 }}
+        >
           <Text style={s.backText}>← Zurück</Text>
         </TouchableOpacity>
         <Text style={s.headerTitle}>Profil & Gruppe</Text>
@@ -386,19 +391,19 @@ export default function ProfilScreen({ navigation }) {
           profileEmoji={profileEmoji}
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  header:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12, borderBottomWidth: 0.5, borderColor: colors.border },
+  container:   { flex: 1, backgroundColor: colors.bg },
+  header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 12, borderBottomWidth: 0.5, borderColor: colors.border },
   headerTitle: { fontSize: 16, fontWeight: '600', color: colors.text },
-  backBtn:   { paddingVertical: 4 },
-  backText:  { color: colors.primary, fontSize: 14, fontWeight: '500' },
-  tabs:      { flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: colors.border },
-  tab:       { flex: 1, paddingVertical: 12, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  tabActive: { borderBottomColor: colors.primary },
-  tabText:   { fontSize: 14, color: colors.textMuted, fontWeight: '500' },
+  backBtn:     { paddingVertical: 8, paddingHorizontal: 4, minWidth: 70 },
+  backText:    { color: colors.primary, fontSize: 15, fontWeight: '500' },
+  tabs:        { flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: colors.border },
+  tab:         { flex: 1, paddingVertical: 13, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  tabActive:   { borderBottomColor: colors.primary },
+  tabText:     { fontSize: 14, color: colors.textMuted, fontWeight: '500' },
   tabTextActive: { color: colors.primary },
 });

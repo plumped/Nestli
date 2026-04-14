@@ -15,6 +15,7 @@ const KEY = {
   pinnedIds:    'nestli_pinned_v1',
   groupCode:    'nestli_group_code_v1',
   profileEmoji: 'nestli_emoji_v1',
+  profilePhoto:  'nestli_photo_v1',
 };
 
 async function get(key, fallback) {
@@ -57,4 +58,6 @@ export const storage = {
   saveGroupCode:    (v) => set(KEY.groupCode,   v),
   loadProfileEmoji: () => get(KEY.profileEmoji, '🌸'),
   saveProfileEmoji: (v) => set(KEY.profileEmoji, v),
+  loadProfilePhoto: () => get(KEY.profilePhoto, null),
+  saveProfilePhoto: (v) => set(KEY.profilePhoto, v),
 };

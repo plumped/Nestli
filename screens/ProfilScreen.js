@@ -1,7 +1,8 @@
 import {
   View, Text, TouchableOpacity, StyleSheet, TextInput,
-  ScrollView, Alert, Share, Modal,
+  ScrollView, Alert, Share, Modal, Image, KeyboardAvoidingView, Platform, Keyboard,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState } from 'react';
 import { useTratsch } from '../context/TratschContext';
@@ -76,16 +77,19 @@ function ProfilTab({ navigation }) {
     kinderMap, updateKinder,
     groupCode, updateGroupCode,
     profileEmoji, updateProfileEmoji,
+    profilePhoto, updateProfilePhoto,
   } = useTratsch();
 
   const myKinder = kinderMap[currentUser] ?? [];
 
   const [editingName,  setEditingName]  = useState(false);
   const [nameInput,    setNameInput]    = useState(currentUser);
-  const [showEmojis,   setShowEmojis]   = useState(false);
+  const [showEmojis,      setShowEmojis]      = useState(false);
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [showAddKind,  setShowAddKind]  = useState(false);
   const [kindName,     setKindName]     = useState('');
   const [kindAlter,    setKindAlter]    = useState('');
+  const [kindFoto,     setKindFoto]     = useState(null);
 
   function saveName() {
     if (!nameInput.trim()) return;
@@ -94,11 +98,12 @@ function ProfilTab({ navigation }) {
   }
 
   function addKind() {
+    Keyboard.dismiss();
     if (!kindName.trim() || !kindAlter.trim()) return;
     const alter = parseInt(kindAlter, 10);
     if (isNaN(alter) || alter < 0 || alter > 18) return;
-    updateKinder([...myKinder, { name: kindName.trim(), alter }]);
-    setKindName(''); setKindAlter('');
+    updateKinder([...myKinder, { name: kindName.trim(), alter, foto: kindFoto ?? null }]);
+    setKindName(''); setKindAlter(''); setKindFoto(null);
     setShowAddKind(false);
   }
 
@@ -131,17 +136,90 @@ function ProfilTab({ navigation }) {
     ]);
   }
 
+  async function pickPhoto() {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Berechtigung benötigt', 'Bitte erlaube den Zugriff auf deine Fotos.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
+      if (!result.canceled) updateProfilePhoto(result.assets[0].uri);
+    } catch {
+      Alert.alert('Fehler', 'Foto konnte nicht geladen werden.');
+    }
+  }
+
+  async function pickKindFoto() {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') { Alert.alert('Berechtigung benötigt', 'Bitte erlaube den Zugriff auf deine Fotos.'); return; }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true, aspect: [1, 1], quality: 0.6,
+      });
+      if (!result.canceled) setKindFoto(result.assets[0].uri);
+    } catch { Alert.alert('Fehler', 'Foto konnte nicht geladen werden.'); }
+  }
+
+  function removePhoto() {
+    Alert.alert('Foto entfernen?', '', [
+      { text: 'Abbrechen', style: 'cancel' },
+      { text: 'Entfernen', style: 'destructive', onPress: () => updateProfilePhoto(null) },
+    ]);
+  }
+
   return (
     <ScrollView contentContainerStyle={pt.scroll} showsVerticalScrollIndicator={false}>
 
       {/* Avatar */}
       <View style={pt.avatarSection}>
-        <TouchableOpacity style={pt.avatar} onPress={() => setShowEmojis(true)} activeOpacity={0.8}>
-          <Text style={pt.avatarEmoji}>{profileEmoji}</Text>
-          <View style={pt.avatarEditBadge}><Text style={pt.avatarEditText}>✏️</Text></View>
-        </TouchableOpacity>
-        <Text style={pt.avatarHint}>Tippen zum Ändern</Text>
+        <View style={pt.avatarWrap}>
+          {profilePhoto ? (
+            <Image source={{ uri: profilePhoto }} style={pt.avatarPhoto} />
+          ) : (
+            <View style={pt.avatar}>
+              <Text style={pt.avatarEmoji}>{profileEmoji}</Text>
+            </View>
+          )}
+          {/* Edit badge – opens choice sheet */}
+          <TouchableOpacity style={pt.avatarEditBadge} onPress={() => setShowAvatarPicker(true)}>
+            <Text style={pt.avatarEditText}>📷</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={pt.avatarHint}>Tippen zum Bearbeiten</Text>
       </View>
+
+      {/* Avatar choice sheet */}
+      <Modal visible={showAvatarPicker} transparent animationType="slide">
+        <View style={pt.sheetOverlay}>
+          <View style={pt.sheet}>
+            <Text style={pt.sheetTitle}>Profilbild</Text>
+            <TouchableOpacity style={pt.sheetBtn} onPress={() => { setShowAvatarPicker(false); setTimeout(pickPhoto, 300); }}>
+              <Text style={pt.sheetBtnEmoji}>📷</Text>
+              <Text style={pt.sheetBtnText}>Foto aus Bibliothek</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={pt.sheetBtn} onPress={() => { setShowAvatarPicker(false); setShowEmojis(true); }}>
+              <Text style={pt.sheetBtnEmoji}>🌸</Text>
+              <Text style={pt.sheetBtnText}>Emoji wählen</Text>
+            </TouchableOpacity>
+            {!!profilePhoto && (
+              <TouchableOpacity style={[pt.sheetBtn, pt.sheetBtnDanger]} onPress={() => { setShowAvatarPicker(false); removePhoto(); }}>
+                <Text style={pt.sheetBtnEmoji}>🗑️</Text>
+                <Text style={[pt.sheetBtnText, { color: '#E53935' }]}>Foto entfernen</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={pt.sheetCancel} onPress={() => setShowAvatarPicker(false)}>
+              <Text style={pt.sheetCancelText}>Abbrechen</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Emoji Picker Modal */}
       <Modal visible={showEmojis} animationType="slide" transparent>
@@ -208,7 +286,11 @@ function ProfilTab({ navigation }) {
           <View style={pt.kinderList}>
             {myKinder.map((k, i) => (
               <View key={i} style={pt.kindCard}>
-                <View style={pt.kindAvatar}><Text style={pt.kindAvatarText}>👶</Text></View>
+                {k.foto ? (
+                  <Image source={{ uri: k.foto }} style={pt.kindAvatarPhoto} />
+                ) : (
+                  <View style={pt.kindAvatar}><Text style={pt.kindAvatarText}>👶</Text></View>
+                )}
                 <View style={{ flex: 1 }}>
                   <Text style={pt.kindName}>{k.name}</Text>
                   <Text style={pt.kindAlter}>{k.alter} Jahre</Text>
@@ -222,22 +304,66 @@ function ProfilTab({ navigation }) {
         )}
 
         {/* Add Kind Modal */}
+        {/* Add Kind Modal */}
         <Modal visible={showAddKind} transparent animationType="slide">
-          <View style={pt.kindOverlay}>
-            <View style={pt.kindSheet}>
-              <Text style={pt.kindSheetTitle}>Kind hinzufügen</Text>
-              <TextInput style={pt.input} placeholder="Name des Kindes" value={kindName} onChangeText={setKindName} autoFocus />
-              <TextInput style={pt.input} placeholder="Alter (Jahre)" value={kindAlter} onChangeText={setKindAlter} keyboardType="number-pad" />
-              <View style={pt.kindBtns}>
-                <TouchableOpacity style={pt.kindBtnCancel} onPress={() => { setShowAddKind(false); setKindName(''); setKindAlter(''); }}>
-                  <Text style={pt.kindBtnCancelText}>Abbrechen</Text>
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <TouchableOpacity style={pt.kindOverlay} activeOpacity={1} onPress={Keyboard.dismiss}>
+              <View style={pt.kindSheet}>
+                <View style={pt.kindHandle} />
+                <Text style={pt.kindSheetTitle}>Kind hinzufügen</Text>
+
+                {/* Foto */}
+                <TouchableOpacity style={pt.kindFotoBtn} onPress={pickKindFoto} activeOpacity={0.8}>
+                  {kindFoto ? (
+                    <>
+                      <Image source={{ uri: kindFoto }} style={pt.kindFotoImg} />
+                      <TouchableOpacity style={pt.kindFotoRemove} onPress={() => setKindFoto(null)}>
+                        <Text style={pt.kindFotoRemoveTxt}>✕</Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={pt.kindFotoIcon}>📷</Text>
+                      <Text style={pt.kindFotoLabel}>Foto (optional)</Text>
+                    </>
+                  )}
                 </TouchableOpacity>
-                <TouchableOpacity style={[pt.kindBtnOk, (!kindName.trim() || !kindAlter.trim()) && pt.kindBtnDisabled]} onPress={addKind} disabled={!kindName.trim() || !kindAlter.trim()}>
-                  <Text style={pt.kindBtnOkText}>Hinzufügen</Text>
-                </TouchableOpacity>
+
+                <TextInput
+                  style={pt.input}
+                  placeholder="Vorname des Kindes"
+                  value={kindName}
+                  onChangeText={setKindName}
+                  autoFocus
+                  returnKeyType="next"
+                />
+                <TextInput
+                  style={pt.input}
+                  placeholder="Alter (z.B. 5)"
+                  value={kindAlter}
+                  onChangeText={v => setKindAlter(v.replace(/[^0-9]/g, ''))}
+                  keyboardType="number-pad"
+                  returnKeyType="done"
+                  onSubmitEditing={addKind}
+                />
+
+                <View style={pt.kindBtns}>
+                  <TouchableOpacity
+                    style={pt.kindBtnCancel}
+                    onPress={() => { Keyboard.dismiss(); setShowAddKind(false); setKindName(''); setKindAlter(''); setKindFoto(null); }}
+                  >
+                    <Text style={pt.kindBtnCancelText}>Abbrechen</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[pt.kindBtnOk, (!kindName.trim() || !kindAlter.trim()) && pt.kindBtnDisabled]}
+                    onPress={addKind}
+                  >
+                    <Text style={pt.kindBtnOkText}>Hinzufügen</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          </View>
+            </TouchableOpacity>
+          </KeyboardAvoidingView>
         </Modal>
       </View>
 
@@ -321,9 +447,32 @@ const pt = StyleSheet.create({
   kindAlter:   { fontSize: 12, color: colors.textMuted },
   removeKind:  { fontSize: 14, color: colors.textMuted, padding: 4 },
 
-  kindOverlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  kindSheet:      { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 36, gap: 14 },
-  kindSheetTitle: { fontSize: 17, fontWeight: '600', color: colors.text },
+  avatarWrap:       { position: 'relative', alignItems: 'center', justifyContent: 'center' },
+  avatarPhoto:      { width: 88, height: 88, borderRadius: 44, borderWidth: 3, borderColor: colors.primaryMid },
+  avatar:           { width: 88, height: 88, borderRadius: 44, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.primaryMid },
+
+  sheetOverlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  sheet:           { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 16, paddingTop: 20, paddingBottom: 40, gap: 8 },
+  sheetTitle:      { fontSize: 17, fontWeight: '700', color: colors.text, textAlign: 'center', marginBottom: 8 },
+  sheetBtn:        { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14, paddingHorizontal: 8, borderRadius: 14, backgroundColor: colors.bgAlt },
+  sheetBtnDanger:  { backgroundColor: '#FFF0F0' },
+  sheetBtnEmoji:   { fontSize: 22, width: 32, textAlign: 'center' },
+  sheetBtnText:    { fontSize: 16, color: colors.text, fontWeight: '500' },
+  sheetCancel:     { marginTop: 4, paddingVertical: 14, alignItems: 'center', backgroundColor: colors.bgAlt, borderRadius: 14 },
+  sheetCancelText: { fontSize: 16, color: colors.textMuted, fontWeight: '500' },
+
+  kindOverlay:    { flex: 1, justifyContent: 'flex-end' },
+  kindSheet:      { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 36, gap: 12 },
+  kindSheetTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
+  kindHandle:      { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: 4 },
+  kindSheetSub:    { fontSize: 13, color: colors.textMuted, marginTop: -6 },
+  kindFotoBtn:     { alignSelf: 'center', width: 80, height: 80, borderRadius: 40, backgroundColor: colors.bgAlt, borderWidth: 1.5, borderColor: colors.border, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  kindFotoImg:     { width: 80, height: 80, borderRadius: 40 },
+  kindFotoRemove:  { position: 'absolute', top: -2, right: -2, width: 22, height: 22, borderRadius: 11, backgroundColor: '#333', alignItems: 'center', justifyContent: 'center' },
+  kindFotoRemoveTxt: { color: '#fff', fontSize: 10, fontWeight: '700' },
+  kindFotoIcon:    { fontSize: 24 },
+  kindFotoLabel:   { fontSize: 11, color: colors.textMuted, marginTop: 3 },
+  kindAvatarPhoto: { width: 42, height: 42, borderRadius: 21, flexShrink: 0 },
   kindBtns:       { flexDirection: 'row', gap: 10, marginTop: 4 },
   kindBtnCancel:       { flex: 1, padding: 13, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
   kindBtnOk:           { flex: 1, padding: 13, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center' },

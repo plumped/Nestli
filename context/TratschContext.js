@@ -173,6 +173,7 @@ export function TratschProvider({ children }) {
   const [kinderMap,    setKinderMap]    = useState({});
   const [groupCode,    setGroupCode]    = useState('NEST-7K3M');
   const [profileEmoji, setProfileEmoji] = useState('🌸');
+  const [profilePhoto, setProfilePhoto] = useState(null);
 
   const [loaded, setLoaded] = useState(false);
 
@@ -199,6 +200,7 @@ export function TratschProvider({ children }) {
         storage.loadPinnedIds(),
         storage.loadGroupCode(),
         storage.loadProfileEmoji(),
+        storage.loadProfilePhoto(),
       ]);
 
       const isFirstRun = savedThreads === null;
@@ -234,6 +236,7 @@ export function TratschProvider({ children }) {
       setPinnedIds(new Set(savedPinned ?? SEED_THREADS.filter(t => t.pinned).map(t => t.id)));
       setGroupCode(savedCode ?? 'NEST-7K3M');
       setProfileEmoji(savedEmoji ?? '🌸');
+      setProfilePhoto(savedPhoto ?? null);
 
       setLoaded(true);
     })();
@@ -512,6 +515,11 @@ export function TratschProvider({ children }) {
     storage.saveProfileEmoji(emoji);
   }, []);
 
+  const updateProfilePhoto = useCallback((uri) => {
+    setProfilePhoto(uri);
+    storage.saveProfilePhoto(uri);
+  }, []);
+
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <AppContext.Provider value={{
@@ -535,6 +543,7 @@ export function TratschProvider({ children }) {
       kinderMap, updateKinder,
       groupCode, updateGroupCode,
       profileEmoji, updateProfileEmoji,
+      profilePhoto, updateProfilePhoto,
     }}>
       {children}
     </AppContext.Provider>

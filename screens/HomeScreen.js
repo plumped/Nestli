@@ -38,7 +38,7 @@ export default function HomeScreen() {
 
   const recentThreads  = threads.slice(0, 3);
   const recentNotfall  = useMemo(() => notfaelle.filter(n => !n.gedeckt).slice(0, 2), [notfaelle]);
-  const recentInserate = useMemo(() => inserate.filter(i => !i.vergeben).slice(0, 3),  [inserate]);
+  const recentInserate = useMemo(() => inserate.filter(i => !i.vergeben && i.autor !== currentUser).slice(0, 3), [inserate, currentUser]);
 
   const notfallOffen    = useMemo(() => notfaelle.filter(n => !n.gedeckt).length,                           [notfaelle]);
   const ichHelfe        = useMemo(() => notfaelle.filter(n => n.helfer.includes(currentUser)).length,       [notfaelle, currentUser]);

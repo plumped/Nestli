@@ -2,7 +2,7 @@ import {
   View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Alert,
   KeyboardAvoidingView, Platform, ScrollView, Image,
 } from 'react-native';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useHeaderHeight } from '@react-navigation/elements';
 import * as ImagePicker from 'expo-image-picker';
 import { useTratsch } from '../context/TratschContext';
@@ -19,6 +19,7 @@ export default function TratschScreen({ navigation, route }) {
   const headerHeight = useHeaderHeight();
 
   const [selected,  setSelected]  = useState(null);
+  const cameFromDashboard = useRef(false);
   const [search,    setSearch]    = useState('');
   const [tagFilter, setTagFilter] = useState(null);
 
@@ -38,9 +39,9 @@ export default function TratschScreen({ navigation, route }) {
     const thread = threads.find(t => t.id === id);
     if (thread) {
       markSeen(thread.id);
+      cameFromDashboard.current = true;
       setSelected(thread);
     }
-    // Clear param so back-navigation doesn't re-trigger
     navigation.setParams({ openThreadId: undefined });
   }, [route?.params?.openThreadId]);
 
@@ -111,7 +112,13 @@ export default function TratschScreen({ navigation, route }) {
 
   // ── Thread detail ─────────────────────────────────────────────────────────
   if (selected) {
-    return <ThreadDetailScreen thread={selected} onBack={() => setSelected(null)} />;
+    return <ThreadDetailScreen thread={selected} onBack={() => {
+      setSelected(null);
+      if (cameFromDashboard.current) {
+        cameFromDashboard.current = false;
+        navigation.navigate('Home');
+      }
+    }} />;
   }
 
   // ── Thread list ───────────────────────────────────────────────────────────

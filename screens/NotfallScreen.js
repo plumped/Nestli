@@ -537,8 +537,8 @@ export default function NotfallScreen({ navigation, route }) {
         <TouchableOpacity style={[sc.chip, !typeFilter && !showOnlyOpen && sc.chipActive]} onPress={() => { setTypeFilter(null); setShowOnlyOpen(false); }}>
           <Text style={[sc.chipText, !typeFilter && !showOnlyOpen && sc.chipTextActive]}>Alle</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[sc.chip, showOnlyOpen && sc.chipOffen]} onPress={() => setShowOnlyOpen(v => !v)}>
-          <Text style={[sc.chipText, showOnlyOpen && sc.chipOffenText]}>🔴 Offen</Text>
+        <TouchableOpacity style={[sc.chip, sc.chipRow, showOnlyOpen && sc.chipOffen]} onPress={() => setShowOnlyOpen(v => !v)}>
+          <View style={sc.offenDot} /><Text style={[sc.chipText, showOnlyOpen && sc.chipOffenText]}>Offen</Text>
         </TouchableOpacity>
         {TYPES.map(t => (
           <TouchableOpacity key={t.id} style={[sc.chip, typeFilter === t.id && sc.chipActive]} onPress={() => setTypeFilter(typeFilter === t.id ? null : t.id)}>
@@ -548,6 +548,7 @@ export default function NotfallScreen({ navigation, route }) {
       </ScrollView>
 
       <FlatList
+        style={{ flex: 1 }}
         data={filtered}
         keyExtractor={item => item.id}
         contentContainerStyle={[sc.list, filtered.length === 0 && sc.listCenter]}
@@ -591,16 +592,18 @@ const sc = StyleSheet.create({
   summaryNum:   { fontSize: 22, fontWeight: '700', color: colors.primary },
   summaryLbl:   { fontSize: 11, color: colors.textMuted, marginTop: 1 },
   summaryDiv:   { width: 0.5, height: 30, backgroundColor: colors.primaryMid },
-  filterBar:    { height: 48 },
+  filterBar:    { height: 60 },
   filterContent:{ paddingHorizontal: 12, paddingVertical: 6, gap: 6, flexDirection: 'row', alignItems: 'center' },
-  chip:         { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: colors.bgAlt, borderWidth: 0.5, borderColor: colors.border },
+  chip:         { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 20, backgroundColor: colors.bgAlt, borderWidth: 0.5, borderColor: colors.border },
   chipActive:   { backgroundColor: colors.primaryLight, borderColor: colors.primary },
   chipText:     { fontSize: 12, color: colors.textMid },
   chipTextActive:{ color: colors.primary, fontWeight: '500' },
   chipOffen:     { backgroundColor: '#FFEBEE', borderColor: '#c62828' },
   chipOffenText: { color: '#c62828', fontWeight: '600' },
+  chipRow:       { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  offenDot:      { width: 7, height: 7, borderRadius: 4, backgroundColor: '#c62828' },
   list:         { padding: 12, gap: 10, paddingBottom: 90 },
-  listCenter:   { flex: 1, justifyContent: 'center' },
+  listCenter:   { flexGrow: 1, justifyContent: 'center' },
   empty:        { alignItems: 'center', gap: 8, paddingVertical: 48 },
   emptyEmoji:   { fontSize: 40 },
   emptyTitle:   { fontSize: 16, fontWeight: '500', color: colors.textMid },

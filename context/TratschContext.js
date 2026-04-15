@@ -100,8 +100,9 @@ const SEED_INSERATE = [
 
 // ─── Seed: Draussen ───────────────────────────────────────────────────────────
 const SEED_DRAUSSEN = [
-  { id: 'd1', autor: 'Anna',  ort: 'Spielplatz Birkenweg', seit: NOW - 25 * 60000 },
-  { id: 'd2', autor: 'Julia', ort: 'Garten (Block A)',     seit: NOW - 10 * 60000 },
+  { id: 'd1', autor: 'Anna',  ort: 'Spielplatz Birkenweg', seit: NOW - 25 * 60000, kind: 'Max',  spaetestens: '17:30' },
+  { id: 'd2', autor: 'Anna',  ort: 'Sandkasten',           seit: NOW - 15 * 60000, kind: 'Mia',  spaetestens: '17:00' },
+  { id: 'd3', autor: 'Julia', ort: 'Garten (Block A)',     seit: NOW - 10 * 60000, kind: 'Luca', spaetestens: '18:00' },
 ];
 
 // ─── Seed: Events ─────────────────────────────────────────────────────────────
@@ -185,6 +186,7 @@ export function TratschProvider({ children }) {
         savedNotfaelle, savedInserate,
         savedDraussen, savedEvents, savedKinder,
         savedBookmarks, savedPinned, savedCode, savedEmoji,
+        savedPhoto,
       ] = await Promise.all([
         storage.loadThreads(),
         storage.loadAnswers(),
@@ -243,15 +245,15 @@ export function TratschProvider({ children }) {
   }, []);
 
   // ── Persist ───────────────────────────────────────────────────────────────
-  useEffect(() => { if (loaded) storage.saveThreads(threads);       }, [threads,      loaded]);
-  useEffect(() => { if (loaded) storage.saveAnswers(answersMap);     }, [answersMap,   loaded]);
-  useEffect(() => { if (loaded) storage.saveNotfaelle(notfaelle);    }, [notfaelle,    loaded]);
-  useEffect(() => { if (loaded) storage.saveInserate(inserate);      }, [inserate,     loaded]);
-  useEffect(() => { if (loaded) storage.saveDraussen(draussenList);  }, [draussenList, loaded]);
-  useEffect(() => { if (loaded) storage.saveEvents(events);          }, [events,       loaded]);
-  useEffect(() => { if (loaded) storage.saveKinderMap(kinderMap);    }, [kinderMap,    loaded]);
-  useEffect(() => { if (loaded) storage.saveBookmarks([...bookmarks]);}, [bookmarks,   loaded]);
-  useEffect(() => { if (loaded) storage.savePinnedIds([...pinnedIds]);}, [pinnedIds,   loaded]);
+  useEffect(() => { if (loaded) storage.saveThreads(threads);        }, [threads,      loaded]);
+  useEffect(() => { if (loaded) storage.saveAnswers(answersMap);      }, [answersMap,   loaded]);
+  useEffect(() => { if (loaded) storage.saveNotfaelle(notfaelle);     }, [notfaelle,    loaded]);
+  useEffect(() => { if (loaded) storage.saveInserate(inserate);       }, [inserate,     loaded]);
+  useEffect(() => { if (loaded) storage.saveDraussen(draussenList);   }, [draussenList, loaded]);
+  useEffect(() => { if (loaded) storage.saveEvents(events);           }, [events,       loaded]);
+  useEffect(() => { if (loaded) storage.saveKinderMap(kinderMap);     }, [kinderMap,    loaded]);
+  useEffect(() => { if (loaded) storage.saveBookmarks([...bookmarks]); }, [bookmarks,   loaded]);
+  useEffect(() => { if (loaded) storage.savePinnedIds([...pinnedIds]); }, [pinnedIds,   loaded]);
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const members = useMemo(() => {
@@ -261,7 +263,6 @@ export function TratschProvider({ children }) {
     return [...set];
   }, [threads, answersMap]);
 
-  // Threads: pinned first, then by ts
   const sortedThreads = useMemo(() => {
     return [...threads].sort((a, b) => {
       const aPin = pinnedIds.has(a.id) ? 1 : 0;
@@ -271,7 +272,6 @@ export function TratschProvider({ children }) {
     });
   }, [threads, pinnedIds]);
 
-  // Active draussen (non-expired)
   const activeDraussen = useMemo(() => {
     const now = Date.now();
     return draussenList.filter(d => now - d.seit < 3 * 3600000);
@@ -447,16 +447,25 @@ export function TratschProvider({ children }) {
   // DRAUSSEN ACTIONS
   // ═══════════════════════════════════════════════════════════════════════════
 
-  const geheDraus = useCallback((ort) => {
-    setDraussenList(prev => {
-      const filtered = prev.filter(d => d.autor !== currentUser);
-      return [...filtered, { id: Date.now().toString(), autor: currentUser, ort, seit: Date.now() }];
-    });
+  // Adds a new entry — multiple entries per user are allowed (one per child)
+  const geheDraus = useCallback((ort, kind, spaetestens) => {
+    setDraussenList(prev => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        autor: currentUser,
+        ort,
+        seit: Date.now(),
+        kind: kind ?? null,
+        spaetestens: spaetestens ?? null,
+      },
+    ]);
   }, [currentUser]);
 
-  const geheRein = useCallback(() => {
-    setDraussenList(prev => prev.filter(d => d.autor !== currentUser));
-  }, [currentUser]);
+  // Removes a specific entry by id (not by autor)
+  const geheRein = useCallback((id) => {
+    setDraussenList(prev => prev.filter(d => d.id !== id));
+  }, []);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // KALENDER ACTIONS

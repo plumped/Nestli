@@ -28,6 +28,8 @@ const ORT_OPTIONS = [
   { id: 'sonstiges',   label: 'Sonstiges',     emoji: '📍' },
 ];
 
+const TIME_OPTIONS = ['15:00', '16:00', '17:00', '17:30', '18:00', '19:00', '20:00'];
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function getGreeting() {
   const h = new Date().getHours();
@@ -47,74 +49,145 @@ function draussenSeit(seit) {
 
 // ─── Draussen Widget ──────────────────────────────────────────────────────────
 function DraussenWidget() {
-  const { currentUser, draussenList, geheDraus, geheRein } = useTratsch();
+  const { currentUser, draussenList, geheDraus, geheRein, kinderMap } = useTratsch();
+  const [expanded,      setExpanded]      = useState(true);
   const [showOrtPicker, setShowOrtPicker] = useState(false);
   const [customOrt,     setCustomOrt]     = useState('');
   const [selectedOrt,   setSelectedOrt]   = useState(null);
+  const [selectedKind,  setSelectedKind]  = useState(null);
+  const [spaetestens,   setSpaetestens]   = useState(null);
 
-  const ichDraussen = draussenList.find(d => d.autor === currentUser);
-  const andereD = draussenList.filter(d => d.autor !== currentUser);
+  const myKinder          = kinderMap[currentUser] ?? [];
+  const meineEintraege    = draussenList.filter(d => d.autor === currentUser);
+  const kinderDraussen    = new Set(meineEintraege.map(d => d.kind).filter(Boolean));
+  const verfuegbareKinder = myKinder.filter(k => !kinderDraussen.has(k.name));
 
-  function gueheRausPress() {
-    if (ichDraussen) {
-      geheRein();
-    } else {
-      setShowOrtPicker(true);
-    }
+  const summary = draussenList.map(d => {
+    const elternteil = d.autor === currentUser ? 'Du' : d.autor;
+    return d.kind ? `${d.kind} (${elternteil})` : elternteil;
+  }).join(', ');
+
+  function openModal() {
+    if (verfuegbareKinder.length === 1) setSelectedKind(verfuegbareKinder[0].name);
+    setShowOrtPicker(true);
+  }
+
+  function closeModal() {
+    setShowOrtPicker(false);
+    setSelectedOrt(null);
+    setCustomOrt('');
+    setSelectedKind(null);
+    setSpaetestens(null);
   }
 
   function confirmOrt() {
     const ort = selectedOrt === 'sonstiges' && customOrt.trim()
       ? customOrt.trim()
       : ORT_OPTIONS.find(o => o.id === selectedOrt)?.label ?? 'Draussen';
-    geheDraus(ort);
-    setShowOrtPicker(false);
-    setSelectedOrt(null);
-    setCustomOrt('');
+    geheDraus(ort, selectedKind, spaetestens);
+    closeModal();
   }
 
+  const kannNochRaus = myKinder.length === 0
+    ? meineEintraege.length === 0
+    : verfuegbareKinder.length > 0;
+
   return (
-    <View style={[dw.wrap, ichDraussen && dw.wrapActive]}>
-      <View style={dw.headerRow}>
-        <Text style={dw.title}>🛝 Wer ist gerade draussen?</Text>
-        {draussenList.length > 0 && (
-          <View style={dw.countBadge}>
-            <Text style={dw.countText}>{draussenList.length}</Text>
-          </View>
-        )}
-      </View>
+    <View style={[dw.wrap, meineEintraege.length > 0 && dw.wrapActive]}>
 
-      {draussenList.length === 0 && !ichDraussen ? (
-        <Text style={dw.emptyText}>Noch niemand draussen — geh als Erste! ☀️</Text>
-      ) : (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={dw.scroll} contentContainerStyle={dw.scrollContent}>
-          {draussenList.map(d => (
-            <View key={d.id} style={[dw.person, d.autor === currentUser && dw.personMe]}>
-              <View style={dw.personAvatar}>
-                <Text style={dw.personAvatarText}>{d.autor[0]}</Text>
+      {/* ── Header: always tappable to toggle ── */}
+      <TouchableOpacity onPress={() => setExpanded(v => !v)} activeOpacity={0.7}>
+        <View style={dw.headerRow}>
+          <View style={dw.headerLeft}>
+            <Text style={dw.title}>🛝 Wer ist gerade draussen?</Text>
+            {draussenList.length > 0 && (
+              <View style={dw.countBadge}>
+                <Text style={dw.countText}>{draussenList.length}</Text>
               </View>
-              <Text style={dw.personName} numberOfLines={1}>{d.autor === currentUser ? 'Du' : d.autor}</Text>
-              <Text style={dw.personOrt} numberOfLines={1}>{d.ort}</Text>
-              <Text style={dw.personSeit}>{draussenSeit(d.seit)}</Text>
-            </View>
-          ))}
-        </ScrollView>
-      )}
+            )}
+          </View>
+          <Text style={dw.chevron}>{expanded ? '▲' : '▼'}</Text>
+        </View>
 
-      <TouchableOpacity
-        style={[dw.btn, ichDraussen && dw.btnActive]}
-        onPress={gueheRausPress}
-      >
-        <Text style={[dw.btnText, ichDraussen && dw.btnTextActive]}>
-          {ichDraussen ? `📍 ${ichDraussen.ort}  ·  Bin wieder drin` : '☀️ Ich gehe raus!'}
-        </Text>
+        {/* Collapsed body is part of same tap area */}
+        {!expanded && (
+          draussenList.length === 0
+            ? <Text style={[dw.emptyText, { marginTop: 6 }]}>Noch niemand draussen — geh als Erste! ☀️</Text>
+            : <Text style={[dw.summaryText, { marginTop: 6 }]} numberOfLines={2}>{summary}</Text>
+        )}
       </TouchableOpacity>
+
+      {/* ── Expanded content ── */}
+      {expanded && (
+        <>
+          {/* Persons scroll — no maxHeight so all info is visible */}
+          {draussenList.length === 0 ? (
+            <Text style={dw.emptyText}>Noch niemand draussen — geh als Erste! ☀️</Text>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={dw.scrollContent}
+            >
+              {draussenList.map(d => {
+                const isMe      = d.autor === currentUser;
+                const hauptName = d.kind ?? (isMe ? 'Du' : d.autor);
+                const nebenName = d.kind ? (isMe ? 'Du' : d.autor) : null;
+                return (
+                  <TouchableOpacity
+                    key={d.id}
+                    style={[dw.person, isMe && dw.personMe]}
+                    onPress={isMe ? () => geheRein(d.id) : undefined}
+                    activeOpacity={isMe ? 0.65 : 1}
+                  >
+                    <View style={[dw.personAvatar, isMe && dw.personAvatarMe]}>
+                      <Text style={dw.personAvatarText}>{d.autor[0]}</Text>
+                    </View>
+                    <Text style={dw.personName} numberOfLines={1}>{hauptName}</Text>
+                    {nebenName && (
+                      <Text style={dw.personEltern} numberOfLines={1}>{nebenName}</Text>
+                    )}
+                    <Text style={dw.personOrt} numberOfLines={1}>{d.ort}</Text>
+                    <Text style={dw.personSeit}>{draussenSeit(d.seit)}</Text>
+                    {d.spaetestens ? (
+                      <Text style={dw.personSpaet}>🏠 {d.spaetestens}</Text>
+                    ) : null}
+                    {isMe && (
+                      <View style={dw.reinHint}>
+                        <Text style={dw.reinHintText}>✕ wieder drin</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          )}
+
+          {kannNochRaus && (
+            <TouchableOpacity style={dw.btn} onPress={openModal}>
+              <Text style={dw.btnText}>
+                {meineEintraege.length === 0 ? '☀️ Ich gehe raus!' : '☀️ Weiteres Kind raus schicken'}
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Tap-to-collapse affordance at the bottom */}
+          <TouchableOpacity
+            onPress={() => setExpanded(false)}
+            activeOpacity={0.5}
+            style={dw.collapseRow}
+          >
+            <Text style={dw.collapseText}>▲ Einklappen</Text>
+          </TouchableOpacity>
+        </>
+      )}
 
       {/* Ort Picker Modal */}
       <Modal visible={showOrtPicker} transparent animationType="slide">
         <View style={dw.ortOverlay}>
           <View style={dw.ortSheet}>
-            <Text style={dw.ortTitle}>Wo bist du?</Text>
+            <Text style={dw.ortTitle}>Wo geht's hin?</Text>
+
             <View style={dw.ortGrid}>
               {ORT_OPTIONS.map(o => (
                 <TouchableOpacity
@@ -136,8 +209,41 @@ function DraussenWidget() {
                 autoFocus
               />
             )}
+
+            {verfuegbareKinder.length > 0 && (
+              <>
+                <Text style={dw.sectionLabel}>Welches Kind?</Text>
+                <View style={dw.kindRow}>
+                  {verfuegbareKinder.map(k => (
+                    <TouchableOpacity
+                      key={k.name}
+                      style={[dw.kindChip, selectedKind === k.name && dw.kindChipActive]}
+                      onPress={() => setSelectedKind(selectedKind === k.name ? null : k.name)}
+                    >
+                      <Text style={[dw.kindLabel, selectedKind === k.name && dw.kindLabelActive]}>
+                        👶 {k.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            )}
+
+            <Text style={dw.sectionLabel}>Spätestens zuhause um?</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={dw.timeRow}>
+              {TIME_OPTIONS.map(t => (
+                <TouchableOpacity
+                  key={t}
+                  style={[dw.timeChip, spaetestens === t && dw.timeChipActive]}
+                  onPress={() => setSpaetestens(spaetestens === t ? null : t)}
+                >
+                  <Text style={[dw.timeLabel, spaetestens === t && dw.timeLabelActive]}>{t}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
             <View style={dw.ortBtns}>
-              <TouchableOpacity style={dw.ortCancel} onPress={() => { setShowOrtPicker(false); setSelectedOrt(null); setCustomOrt(''); }}>
+              <TouchableOpacity style={dw.ortCancel} onPress={closeModal}>
                 <Text style={dw.ortCancelText}>Abbrechen</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -156,42 +262,65 @@ function DraussenWidget() {
 }
 
 const dw = StyleSheet.create({
-  wrap:       { backgroundColor: '#FFF8E1', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#FFE082', gap: 10 },
-  wrapActive: { backgroundColor: '#E8F5E9', borderColor: '#A5D6A7' },
-  headerRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title:      { fontSize: 13, fontWeight: '600', color: '#6D4C00' },
-  countBadge: { backgroundColor: '#FF8F00', borderRadius: 10, minWidth: 20, height: 20, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
-  countText:  { color: '#fff', fontSize: 11, fontWeight: '700' },
-  emptyText:  { fontSize: 13, color: '#9E8000', lineHeight: 19 },
-  scroll:     { maxHeight: 90 },
-  scrollContent: { gap: 8, paddingVertical: 2 },
-  person:     { alignItems: 'center', gap: 3, width: 64 },
-  personMe:   { opacity: 1 },
-  personAvatar:     { width: 38, height: 38, borderRadius: 19, backgroundColor: '#FFE082', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#FFB300' },
-  personAvatarText: { fontSize: 16, fontWeight: '600', color: '#6D4C00' },
-  personName: { fontSize: 11, fontWeight: '600', color: '#4A3000', maxWidth: 60 },
-  personOrt:  { fontSize: 10, color: '#8A6500', maxWidth: 62, textAlign: 'center' },
-  personSeit: { fontSize: 10, color: '#B8860B' },
-  btn:        { borderRadius: 10, paddingVertical: 10, paddingHorizontal: 14, backgroundColor: '#FFB300', alignItems: 'center' },
-  btnActive:  { backgroundColor: '#66BB6A' },
-  btnText:    { fontSize: 13, fontWeight: '600', color: '#fff' },
-  btnTextActive: { color: '#fff' },
-  ortOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  ortSheet:   { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 36, gap: 14 },
-  ortTitle:   { fontSize: 17, fontWeight: '600', color: colors.text },
-  ortGrid:    { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  ortChip:    { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 12, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.bgAlt },
-  ortChipActive: { borderColor: '#FFB300', backgroundColor: '#FFF8E1' },
-  ortEmoji:   { fontSize: 18 },
-  ortLabel:   { fontSize: 13, color: colors.textMid, fontWeight: '500' },
-  ortLabelActive: { color: '#6D4C00' },
-  ortInput:   { borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 13, fontSize: 15 },
-  ortBtns:    { flexDirection: 'row', gap: 10 },
-  ortCancel:  { flex: 1, padding: 13, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
-  ortCancelText: { color: colors.textMid, fontWeight: '500' },
-  ortConfirm:  { flex: 1, padding: 13, borderRadius: 12, backgroundColor: '#FFB300', alignItems: 'center' },
+  wrap:            { backgroundColor: '#FFF8E1', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#FFE082', gap: 10 },
+  wrapActive:      { backgroundColor: '#E8F5E9', borderColor: '#A5D6A7' },
+  headerRow:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerLeft:      { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+  title:           { fontSize: 13, fontWeight: '600', color: '#6D4C00' },
+  chevron:         { fontSize: 10, color: '#9E8000', marginLeft: 4 },
+  countBadge:      { backgroundColor: '#FF8F00', borderRadius: 10, minWidth: 20, height: 20, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
+  countText:       { color: '#fff', fontSize: 11, fontWeight: '700' },
+  emptyText:       { fontSize: 13, color: '#9E8000', lineHeight: 19 },
+  summaryText:     { fontSize: 12, color: '#6D4C00', lineHeight: 18, opacity: 0.85 },
+
+  // No maxHeight — let cards show everything
+  scrollContent:   { gap: 10, paddingVertical: 4 },
+  person:          { alignItems: 'center', gap: 3, width: 76 },
+  personMe:        { opacity: 1 },
+  personAvatar:    { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFE082', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#FFB300' },
+  personAvatarMe:  { borderColor: '#66BB6A', backgroundColor: '#C8E6C9' },
+  personAvatarText:{ fontSize: 17, fontWeight: '600', color: '#6D4C00' },
+  personName:      { fontSize: 12, fontWeight: '700', color: '#4A3000', maxWidth: 74, textAlign: 'center' },
+  personEltern:    { fontSize: 10, color: '#8A6500', maxWidth: 74, textAlign: 'center' },
+  personOrt:       { fontSize: 10, color: '#6D4C00', maxWidth: 74, textAlign: 'center' },
+  personSeit:      { fontSize: 10, color: '#B8860B' },
+  personSpaet:     { fontSize: 10, color: '#E65100', fontWeight: '600' },
+  reinHint:        { marginTop: 2, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 8, backgroundColor: 'rgba(102,187,106,0.18)', borderWidth: 1, borderColor: '#A5D6A7' },
+  reinHintText:    { fontSize: 9, color: '#2E7D32', fontWeight: '600', textAlign: 'center' },
+
+  btn:             { borderRadius: 10, paddingVertical: 10, paddingHorizontal: 14, backgroundColor: '#FFB300', alignItems: 'center' },
+  btnText:         { fontSize: 13, fontWeight: '600', color: '#fff' },
+
+  collapseRow:     { alignItems: 'center', paddingVertical: 2 },
+  collapseText:    { fontSize: 11, color: '#9E8000', opacity: 0.7 },
+
+  ortOverlay:      { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  ortSheet:        { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 36, gap: 12 },
+  ortTitle:        { fontSize: 17, fontWeight: '600', color: colors.text },
+  ortGrid:         { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  ortChip:         { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 12, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.bgAlt },
+  ortChipActive:   { borderColor: '#FFB300', backgroundColor: '#FFF8E1' },
+  ortEmoji:        { fontSize: 18 },
+  ortLabel:        { fontSize: 13, color: colors.textMid, fontWeight: '500' },
+  ortLabelActive:  { color: '#6D4C00' },
+  ortInput:        { borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 13, fontSize: 15 },
+  ortBtns:         { flexDirection: 'row', gap: 10, marginTop: 4 },
+  ortCancel:       { flex: 1, padding: 13, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
+  ortCancelText:   { color: colors.textMid, fontWeight: '500' },
+  ortConfirm:      { flex: 1, padding: 13, borderRadius: 12, backgroundColor: '#FFB300', alignItems: 'center' },
   ortConfirmDisabled: { backgroundColor: colors.border },
-  ortConfirmText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  ortConfirmText:  { color: '#fff', fontWeight: '700', fontSize: 15 },
+  sectionLabel:    { fontSize: 12, fontWeight: '600', color: '#6D4C00', marginBottom: 2 },
+  kindRow:         { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  kindChip:        { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 16, backgroundColor: colors.bgAlt, borderWidth: 1, borderColor: colors.border },
+  kindChipActive:  { backgroundColor: '#E8F5E9', borderColor: '#4CAF50' },
+  kindLabel:       { fontSize: 13, color: colors.textMid },
+  kindLabelActive: { color: '#2E7D32', fontWeight: '600' },
+  timeRow:         { paddingVertical: 2, gap: 6 },
+  timeChip:        { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, backgroundColor: colors.bgAlt, borderWidth: 1, borderColor: colors.border },
+  timeChipActive:  { backgroundColor: '#FFF3E0', borderColor: '#FF8F00' },
+  timeLabel:       { fontSize: 13, color: colors.textMid },
+  timeLabelActive: { color: '#E65100', fontWeight: '700' },
 });
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
@@ -209,11 +338,11 @@ export default function HomeScreen() {
   const recentInserate = useMemo(() => inserate.filter(i => !i.vergeben && i.autor !== currentUser).slice(0, 3), [inserate, currentUser]);
   const upcomingEvents = useMemo(() => events.filter(e => new Date(e.datum) >= new Date()).sort((a, b) => new Date(a.datum) - new Date(b.datum)).slice(0, 2), [events]);
 
-  const notfallOffen    = useMemo(() => notfaelle.filter(n => !n.gedeckt).length,                           [notfaelle]);
-  const ichHelfe        = useMemo(() => notfaelle.filter(n => n.helfer.includes(currentUser)).length,       [notfaelle, currentUser]);
-  const kleiderAngebote = useMemo(() => inserate.filter(i => i.modus === 'biete' && !i.vergeben).length,   [inserate]);
-  const kleiderGesuche  = useMemo(() => inserate.filter(i => i.modus === 'suche'  && !i.vergeben).length,  [inserate]);
-  const meinInteresse   = useMemo(() => inserate.filter(i => i.interessenten.includes(currentUser)).length, [inserate, currentUser]);
+  const notfallOffen    = useMemo(() => notfaelle.filter(n => !n.gedeckt).length,                            [notfaelle]);
+  const ichHelfe        = useMemo(() => notfaelle.filter(n => n.helfer.includes(currentUser)).length,        [notfaelle, currentUser]);
+  const kleiderAngebote = useMemo(() => inserate.filter(i => i.modus === 'biete' && !i.vergeben).length,    [inserate]);
+  const kleiderGesuche  = useMemo(() => inserate.filter(i => i.modus === 'suche'  && !i.vergeben).length,   [inserate]);
+  const meinInteresse   = useMemo(() => inserate.filter(i => i.interessenten.includes(currentUser)).length,  [inserate, currentUser]);
   const nextEvent       = upcomingEvents[0];
 
   function goTo(tab)          { navigation.navigate(tab); }
@@ -237,7 +366,6 @@ export default function HomeScreen() {
   return (
     <ScrollView style={s.container} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
 
-      {/* Hero */}
       <View style={s.hero}>
         <View style={s.heroInner}>
           <Text style={s.greeting}>{getGreeting()},</Text>
@@ -247,10 +375,8 @@ export default function HomeScreen() {
         <Text style={s.nestEmoji}>🪺</Text>
       </View>
 
-      {/* Draussen Widget */}
       <DraussenWidget />
 
-      {/* Unread banner */}
       {unreadCount > 0 && (
         <TouchableOpacity style={s.unreadBanner} onPress={() => goTo('Tratsch')} activeOpacity={0.82}>
           <View style={s.bannerLeft}>
@@ -261,7 +387,6 @@ export default function HomeScreen() {
         </TouchableOpacity>
       )}
 
-      {/* Notfall banner */}
       {notfallOffen > 0 && (
         <TouchableOpacity style={s.notfallBanner} onPress={goToOffen} activeOpacity={0.82}>
           <View style={s.bannerLeft}>
@@ -272,7 +397,6 @@ export default function HomeScreen() {
         </TouchableOpacity>
       )}
 
-      {/* Quick cards */}
       <Text style={s.sectionLabel}>Bereiche</Text>
       <View style={s.quickGrid}>
         <TouchableOpacity style={[s.quickCard, { borderColor: colors.primary }]} onPress={() => goTo('Tratsch')} activeOpacity={0.78}>
@@ -305,7 +429,17 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Nächste Termine */}
+      <TouchableOpacity style={[s.quickCardWide, { borderColor: colors.border }]} onPress={() => goTo('Kleider')} activeOpacity={0.78}>
+        <View style={[s.quickIcon, { backgroundColor: '#FCE4EC' }]}>
+          <Text style={s.quickEmoji}>🧥</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.quickTitle}>Kleider-Börse</Text>
+          <Text style={s.quickStat}>{kleiderAngebote} Angebote · {kleiderGesuche} Gesuche{meinInteresse > 0 ? ` · ${meinInteresse} mein Interesse` : ''}</Text>
+        </View>
+        {meinInteresse > 0 && <View style={[s.quickBadge, { position: 'relative', top: 0, right: 0 }]}><Text style={s.quickBadgeText}>{meinInteresse}</Text></View>}
+      </TouchableOpacity>
+
       {upcomingEvents.length > 0 && (
         <>
           <View style={s.sectionRow}>
@@ -345,7 +479,6 @@ export default function HomeScreen() {
         </>
       )}
 
-      {/* Offene Notfälle */}
       {recentNotfall.length > 0 && (
         <>
           <View style={s.sectionRow}>
@@ -384,7 +517,6 @@ export default function HomeScreen() {
         </>
       )}
 
-      {/* Neueste Themen */}
       {recentThreads.length > 0 && (
         <>
           <View style={s.sectionRow}>
@@ -427,7 +559,6 @@ export default function HomeScreen() {
         </>
       )}
 
-      {/* Neueste Kleider-Inserate */}
       {recentInserate.length > 0 && (
         <>
           <View style={s.sectionRow}>
@@ -506,8 +637,9 @@ const s = StyleSheet.create({
   sectionLabel: { fontSize: 13, fontWeight: '600', color: colors.text },
   sectionLink:  { fontSize: 12, color: colors.primary, fontWeight: '500' },
 
-  quickGrid: { flexDirection: 'row', gap: 8 },
-  quickCard: { flex: 1, backgroundColor: colors.bgAlt, borderRadius: 16, padding: 12, borderWidth: 1, gap: 5, position: 'relative' },
+  quickGrid:      { flexDirection: 'row', gap: 8 },
+  quickCard:      { flex: 1, backgroundColor: colors.bgAlt, borderRadius: 16, padding: 12, borderWidth: 1, gap: 5, position: 'relative' },
+  quickCardWide:  { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.bgAlt, borderRadius: 16, padding: 12, borderWidth: 1 },
   quickIcon:      { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   quickEmoji:     { fontSize: 18 },
   quickTitle:     { fontSize: 13, fontWeight: '600', color: colors.text },

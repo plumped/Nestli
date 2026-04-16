@@ -34,10 +34,10 @@ function formatDate(date) {
 // ─── Detail Modal ─────────────────────────────────────────────────────────────
 function NotfallDetailModal({ item, visible, currentUser, onClose, onToggleHelfer, onToggleGedeckt }) {
   if (!item) return null;
-  const type    = typeById(item.type);
-  const isOwn   = item.autor === currentUser;
-  const ichHelfe= item.helfer.includes(currentUser);
-  const wannStr = item.wann ? formatDate(item.wann) : null;
+  const type     = typeById(item.type);
+  const isOwn    = item.autor === currentUser;
+  const ichHelfe = item.helfer.includes(currentUser);
+  const wannStr  = item.wann ? formatDate(item.wann) : null;
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
@@ -59,7 +59,7 @@ function NotfallDetailModal({ item, visible, currentUser, onClose, onToggleHelfe
             </View>
             <View style={dm.heroRight}>
               <View style={dm.badgeRow}>
-                <View style={[dm.typeBadge]}>
+                <View style={dm.typeBadge}>
                   <Text style={dm.typeBadgeText}>{type.label}</Text>
                 </View>
                 {item.gedeckt && (
@@ -147,11 +147,11 @@ function NotfallDetailModal({ item, visible, currentUser, onClose, onToggleHelfe
 }
 
 const dm = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  header:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12, borderBottomWidth: 0.5, borderColor: colors.border },
+  container:   { flex: 1, backgroundColor: colors.bg },
+  header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12, borderBottomWidth: 0.5, borderColor: colors.border },
   headerTitle: { fontSize: 15, fontWeight: '600', color: colors.text, flex: 1, textAlign: 'center' },
-  closeBtn:  { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.bgAlt, alignItems: 'center', justifyContent: 'center' },
-  closeTxt:  { fontSize: 14, color: colors.textMid },
+  closeBtn:    { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.bgAlt, alignItems: 'center', justifyContent: 'center' },
+  closeTxt:    { fontSize: 14, color: colors.textMid },
 
   scroll: { padding: 20, gap: 20, paddingBottom: 100 },
 
@@ -160,10 +160,10 @@ const dm = StyleSheet.create({
   heroIcon:   { width: 64, height: 64, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.6)', alignItems: 'center', justifyContent: 'center' },
   heroRight:  { flex: 1, gap: 6 },
   badgeRow:   { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
-  typeBadge:  { paddingHorizontal: 8, paddingVertical: 3, backgroundColor: 'rgba(212,112,10,0.15)', borderRadius: 8 },
-  typeBadgeText: { fontSize: 12, color: '#D4700A', fontWeight: '600' },
-  solvedBadge:     { paddingHorizontal: 8, paddingVertical: 3, backgroundColor: '#E8F5E9', borderRadius: 8 },
-  solvedBadgeText: { fontSize: 12, color: '#2E7D32', fontWeight: '600' },
+  typeBadge:      { paddingHorizontal: 8, paddingVertical: 3, backgroundColor: 'rgba(212,112,10,0.15)', borderRadius: 8 },
+  typeBadgeText:  { fontSize: 12, color: '#D4700A', fontWeight: '600' },
+  solvedBadge:    { paddingHorizontal: 8, paddingVertical: 3, backgroundColor: '#E8F5E9', borderRadius: 8 },
+  solvedBadgeText:{ fontSize: 12, color: '#2E7D32', fontWeight: '600' },
   titel:    { fontSize: 16, fontWeight: '700', color: colors.text, lineHeight: 22 },
   metaRow:  { flexDirection: 'row', alignItems: 'center', gap: 6 },
   meta:     { fontSize: 12, color: colors.textMuted },
@@ -242,13 +242,13 @@ function DateTimePickerModal({ visible, initial, onConfirm, onCancel }) {
 }
 
 const dp = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  sheet:   { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32 },
-  header:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 0.5, borderColor: colors.border },
-  title:   { fontSize: 15, fontWeight: '600', color: colors.text, textAlign: 'center' },
-  cancel:  { fontSize: 14, color: colors.textMuted },
-  done:    { fontSize: 14, color: colors.primary, fontWeight: '600' },
-  btns:    { flexDirection: 'row', gap: 10, padding: 16 },
+  overlay:       { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  sheet:         { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32 },
+  header:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 0.5, borderColor: colors.border },
+  title:         { fontSize: 15, fontWeight: '600', color: colors.text, textAlign: 'center' },
+  cancel:        { fontSize: 14, color: colors.textMuted },
+  done:          { fontSize: 14, color: colors.primary, fontWeight: '600' },
+  btns:          { flexDirection: 'row', gap: 10, padding: 16 },
   btnCancel:     { flex: 1, padding: 12, borderRadius: 10, borderWidth: 0.5, borderColor: colors.border, alignItems: 'center' },
   btnOk:         { flex: 1, padding: 12, borderRadius: 10, backgroundColor: colors.primary, alignItems: 'center' },
   btnCancelText: { color: colors.textMid },
@@ -257,11 +257,11 @@ const dp = StyleSheet.create({
 
 // ─── New Request Form Modal ───────────────────────────────────────────────────
 function NewNotfallModal({ visible, onSubmit, onClose }) {
-  const [step, setStep]     = useState(1);
-  const [type, setType]     = useState(null);
-  const [titel, setTitel]   = useState('');
-  const [text, setText]     = useState('');
-  const [wann, setWann]     = useState(null);
+  const [step,    setStep]    = useState(1);
+  const [type,    setType]    = useState(null);
+  const [titel,   setTitel]   = useState('');
+  const [text,    setText]    = useState('');
+  const [wann,    setWann]    = useState(null);
   const [showDTP, setShowDTP] = useState(false);
 
   function reset() { setStep(1); setType(null); setTitel(''); setText(''); setWann(null); setShowDTP(false); }
@@ -347,8 +347,8 @@ const fm = StyleSheet.create({
   stepLineActive: { backgroundColor: colors.primary },
   scrollContent: { paddingBottom: 24 },
   stepContent:   { padding: 20, gap: 14 },
-  stepTitle:     { fontSize: 22, fontWeight: '600', color: colors.text },
-  stepSub:       { fontSize: 14, color: colors.textMuted, marginTop: -8 },
+  stepTitle:       { fontSize: 22, fontWeight: '600', color: colors.text },
+  stepSub:         { fontSize: 14, color: colors.textMuted, marginTop: -8 },
   typeGrid:     { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 4 },
   tile:         { width: '47%', borderRadius: 16, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.bgAlt, padding: 18, gap: 6, alignItems: 'center' },
   tileActive:   { borderColor: colors.primary, backgroundColor: colors.primaryLight },
@@ -363,12 +363,12 @@ const fm = StyleSheet.create({
   labelOpt: { fontWeight: '400', color: colors.border },
   input:    { backgroundColor: colors.bgAlt, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 13, fontSize: 15 },
   textarea: { minHeight: 80, textAlignVertical: 'top' },
-  datePicker:          { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.bgAlt, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 13 },
-  datePickerFilled:    { borderColor: colors.primary, backgroundColor: colors.primaryLight },
-  datePickerEmoji:     { fontSize: 18 },
-  datePickerText:      { flex: 1, fontSize: 15, color: colors.textMuted },
-  datePickerTextFilled:{ color: colors.primary, fontWeight: '500' },
-  datePickerClear:     { color: colors.textMuted, fontSize: 14, padding: 2 },
+  datePicker:           { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.bgAlt, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 13 },
+  datePickerFilled:     { borderColor: colors.primary, backgroundColor: colors.primaryLight },
+  datePickerEmoji:      { fontSize: 18 },
+  datePickerText:       { flex: 1, fontSize: 15, color: colors.textMuted },
+  datePickerTextFilled: { color: colors.primary, fontWeight: '500' },
+  datePickerClear:      { color: colors.textMuted, fontSize: 14, padding: 2 },
   footer:           { padding: 16, borderTopWidth: 0.5, borderColor: colors.border, backgroundColor: colors.bg },
   submitBtn:        { backgroundColor: colors.primary, borderRadius: 14, padding: 16, alignItems: 'center' },
   submitBtnDisabled:{ backgroundColor: colors.border },
@@ -377,10 +377,10 @@ const fm = StyleSheet.create({
 
 // ─── Notfall Card ─────────────────────────────────────────────────────────────
 function NotfallCard({ item, currentUser, onToggleHelfer, onToggleGedeckt, onOpen }) {
-  const type    = typeById(item.type);
-  const isOwn   = item.autor === currentUser;
-  const ichHelfe= item.helfer.includes(currentUser);
-  const wannStr = item.wann ? formatDate(item.wann) : null;
+  const type     = typeById(item.type);
+  const isOwn    = item.autor === currentUser;
+  const ichHelfe = item.helfer.includes(currentUser);
+  const wannStr  = item.wann ? formatDate(item.wann) : null;
 
   return (
     <TouchableOpacity style={[cd.wrap, item.gedeckt && cd.wrapDim]} onPress={onOpen} activeOpacity={0.82}>
@@ -435,9 +435,12 @@ function NotfallCard({ item, currentUser, onToggleHelfer, onToggleGedeckt, onOpe
       ) : (
         <TouchableOpacity style={[cd.helfeBtn, ichHelfe && cd.helfeBtnActive, item.gedeckt && cd.helfeBtnDone]}
           onPress={() => !item.gedeckt && onToggleHelfer(item.id)} activeOpacity={item.gedeckt ? 1 : 0.75}>
-          {ichHelfe ? <Text style={cd.helfeTxtActive}>Ich helfe · Zusage zurückziehen</Text>
-            : item.gedeckt ? <Text style={cd.helfeTxtDone}>Bereits gedeckt</Text>
-            : <Text style={cd.helfeTxt}>🙋 Ich helfe!</Text>}
+          {ichHelfe
+            ? <Text style={cd.helfeTxtActive}>Ich helfe · Zusage zurückziehen</Text>
+            : item.gedeckt
+              ? <Text style={cd.helfeTxtDone}>Bereits gedeckt</Text>
+              : <Text style={cd.helfeTxt}>🙋 Ich helfe!</Text>
+          }
         </TouchableOpacity>
       )}
     </TouchableOpacity>
@@ -456,7 +459,7 @@ const cd = StyleSheet.create({
   metaRow:  { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
   meta:     { fontSize: 12, color: colors.textMuted },
   metaDot:  { fontSize: 12, color: colors.border },
-  ownBadge: { paddingHorizontal: 6, paddingVertical: 1, backgroundColor: colors.primaryMid, borderRadius: 8 },
+  ownBadge:     { paddingHorizontal: 6, paddingVertical: 1, backgroundColor: colors.primaryMid, borderRadius: 8 },
   ownBadgeText: { fontSize: 10, color: colors.primary, fontWeight: '600' },
   status:      { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, flexShrink: 0 },
   statusRed:   { backgroundColor: '#FFEBEE' },
@@ -475,10 +478,10 @@ const cd = StyleSheet.create({
   avatarTxt:  { fontSize: 10, fontWeight: '700', color: colors.primary },
   helferNames:{ fontSize: 12, color: colors.textMid, flex: 1 },
   noHelfer:   { fontSize: 12, color: colors.textMuted, flex: 1 },
-  manageBtn:  { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.bg, flexShrink: 0 },
-  manageBtnSolved:  { borderColor: '#7bc47b', backgroundColor: '#edfaed' },
-  manageTxt:        { fontSize: 12, color: colors.textMid, fontWeight: '500' },
-  manageTxtSolved:  { color: '#3a8a3a' },
+  manageBtn:       { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.bg, flexShrink: 0 },
+  manageBtnSolved: { borderColor: '#7bc47b', backgroundColor: '#edfaed' },
+  manageTxt:       { fontSize: 12, color: colors.textMid, fontWeight: '500' },
+  manageTxtSolved: { color: '#3a8a3a' },
   helfeBtn:       { borderRadius: 12, padding: 14, alignItems: 'center', borderWidth: 1.5, borderColor: colors.primary, backgroundColor: colors.bg },
   helfeBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   helfeBtnDone:   { borderColor: colors.border, backgroundColor: colors.bgAlt },
@@ -490,10 +493,10 @@ const cd = StyleSheet.create({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function NotfallScreen({ navigation, route }) {
   const { currentUser, notfaelle, addNotfall, toggleHelfer, toggleGedeckt } = useTratsch();
-  const [typeFilter,    setTypeFilter]    = useState(null);
-  const [showOnlyOpen,  setShowOnlyOpen]  = useState(false);
-  const [showForm,      setShowForm]      = useState(false);
-  const [detailItem,    setDetailItem]    = useState(null);
+  const [typeFilter,   setTypeFilter]   = useState(null);
+  const [showOnlyOpen, setShowOnlyOpen] = useState(false);
+  const [showForm,     setShowForm]     = useState(false);
+  const [detailItem,   setDetailItem]   = useState(null);
 
   // ── Deep-link from dashboard ──────────────────────────────────────────────
   useEffect(() => {
@@ -525,6 +528,7 @@ export default function NotfallScreen({ navigation, route }) {
 
   return (
     <View style={sc.container}>
+      {/* Stats summary */}
       <View style={sc.summary}>
         <View style={sc.summaryItem}><Text style={sc.summaryNum}>{offenCount}</Text><Text style={sc.summaryLbl}>Offen</Text></View>
         <View style={sc.summaryDiv} />
@@ -533,19 +537,22 @@ export default function NotfallScreen({ navigation, route }) {
         <View style={sc.summaryItem}><Text style={sc.summaryNum}>{ichHelfeCount}</Text><Text style={sc.summaryLbl}>Ich helfe</Text></View>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={sc.filterBar} contentContainerStyle={sc.filterContent}>
-        <TouchableOpacity style={[sc.chip, !typeFilter && !showOnlyOpen && sc.chipActive]} onPress={() => { setTypeFilter(null); setShowOnlyOpen(false); }}>
-          <Text style={[sc.chipText, !typeFilter && !showOnlyOpen && sc.chipTextActive]}>Alle</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[sc.chip, sc.chipRow, showOnlyOpen && sc.chipOffen]} onPress={() => setShowOnlyOpen(v => !v)}>
-          <View style={sc.offenDot} /><Text style={[sc.chipText, showOnlyOpen && sc.chipOffenText]}>Offen</Text>
-        </TouchableOpacity>
-        {TYPES.map(t => (
-          <TouchableOpacity key={t.id} style={[sc.chip, typeFilter === t.id && sc.chipActive]} onPress={() => setTypeFilter(typeFilter === t.id ? null : t.id)}>
-            <Text style={[sc.chipText, typeFilter === t.id && sc.chipTextActive]}>{t.emoji} {t.label}</Text>
+      {/* ── FIX: outer View constrains height, ScrollView scrolls inside ── */}
+      <View style={sc.filterBar}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={sc.filterContent}>
+          <TouchableOpacity style={[sc.chip, !typeFilter && !showOnlyOpen && sc.chipActive]} onPress={() => { setTypeFilter(null); setShowOnlyOpen(false); }}>
+            <Text style={[sc.chipText, !typeFilter && !showOnlyOpen && sc.chipTextActive]}>Alle</Text>
           </TouchableOpacity>
-        ))}
-      </ScrollView>
+          <TouchableOpacity style={[sc.chip, sc.chipRow, showOnlyOpen && sc.chipOffen]} onPress={() => setShowOnlyOpen(v => !v)}>
+            <View style={sc.offenDot} /><Text style={[sc.chipText, showOnlyOpen && sc.chipOffenText]}>Offen</Text>
+          </TouchableOpacity>
+          {TYPES.map(t => (
+            <TouchableOpacity key={t.id} style={[sc.chip, typeFilter === t.id && sc.chipActive]} onPress={() => setTypeFilter(typeFilter === t.id ? null : t.id)}>
+              <Text style={[sc.chipText, typeFilter === t.id && sc.chipTextActive]}>{t.emoji} {t.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
       <FlatList
         style={{ flex: 1 }}
@@ -553,10 +560,13 @@ export default function NotfallScreen({ navigation, route }) {
         keyExtractor={item => item.id}
         contentContainerStyle={[sc.list, filtered.length === 0 && sc.listCenter]}
         renderItem={({ item }) => (
-          <NotfallCard item={item} currentUser={currentUser}
+          <NotfallCard
+            item={item}
+            currentUser={currentUser}
             onToggleHelfer={toggleHelfer}
             onToggleGedeckt={toggleGedeckt}
-            onOpen={() => setDetailItem(item)} />
+            onOpen={() => setDetailItem(item)}
+          />
         )}
         ListEmptyComponent={
           <View style={sc.empty}>
@@ -592,16 +602,17 @@ const sc = StyleSheet.create({
   summaryNum:   { fontSize: 22, fontWeight: '700', color: colors.primary },
   summaryLbl:   { fontSize: 11, color: colors.textMuted, marginTop: 1 },
   summaryDiv:   { width: 0.5, height: 30, backgroundColor: colors.primaryMid },
-  filterBar:    { height: 60 },
+  // ── FIX: height on the wrapper View, not on ScrollView ──
+  filterBar:    { height: 44 },
   filterContent:{ paddingHorizontal: 12, paddingVertical: 6, gap: 6, flexDirection: 'row', alignItems: 'center' },
-  chip:         { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 20, backgroundColor: colors.bgAlt, borderWidth: 0.5, borderColor: colors.border },
+  chip:         { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: colors.bgAlt, borderWidth: 0.5, borderColor: colors.border },
   chipActive:   { backgroundColor: colors.primaryLight, borderColor: colors.primary },
   chipText:     { fontSize: 12, color: colors.textMid },
   chipTextActive:{ color: colors.primary, fontWeight: '500' },
-  chipOffen:     { backgroundColor: '#FFEBEE', borderColor: '#c62828' },
-  chipOffenText: { color: '#c62828', fontWeight: '600' },
-  chipRow:       { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  offenDot:      { width: 7, height: 7, borderRadius: 4, backgroundColor: '#c62828' },
+  chipOffen:    { backgroundColor: '#FFEBEE', borderColor: '#c62828' },
+  chipOffenText:{ color: '#c62828', fontWeight: '600' },
+  chipRow:      { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  offenDot:     { width: 7, height: 7, borderRadius: 4, backgroundColor: '#c62828' },
   list:         { padding: 12, gap: 10, paddingBottom: 90 },
   listCenter:   { flexGrow: 1, justifyContent: 'center' },
   empty:        { alignItems: 'center', gap: 8, paddingVertical: 48 },

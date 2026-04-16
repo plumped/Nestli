@@ -110,10 +110,16 @@ const SEED_EVENTS = [
   {
     id: 'ev1', autor: 'Monika',
     titel: 'Grillabend im Innenhof',
-    beschreibung: 'Jeder bringt etwas mit! Getränke sind vorhanden.',
+    beschreibung: 'Getränke sind vorhanden. Jeder bringt etwas zum Grillen mit.',
     datum: new Date(NOW + 2 * 24 * 3600000).toISOString(),
     uhrzeit: '18:00', ort: 'Innenhof Block B',
-    kategorie: 'grillabend', teilnehmer: ['Monika', 'Sarah', 'Anna'],
+    kategorie: 'grillabend',
+    ganztag: false,
+    maxTeilnehmer: 15,
+    teilnehmer: ['Monika', 'Sarah', 'Anna'],
+    kommentare: [
+      { id: 'k1', autor: 'Sarah', text: 'Ich bringe einen Salat mit! 🥗', ts: NOW - 1200000 },
+    ],
     ts: NOW - 3600000,
   },
   {
@@ -122,7 +128,11 @@ const SEED_EVENTS = [
     beschreibung: 'Für Kinder 3–8 Jahre. Snacks vorhanden.',
     datum: new Date(NOW + 5 * 24 * 3600000).toISOString(),
     uhrzeit: '14:30', ort: 'Wohnung 14, 2. OG',
-    kategorie: 'spielnachmittag', teilnehmer: ['Sarah'],
+    kategorie: 'spielnachmittag',
+    ganztag: false,
+    maxTeilnehmer: 8,
+    teilnehmer: ['Sarah'],
+    kommentare: [],
     ts: NOW - 1800000,
   },
   {
@@ -131,7 +141,11 @@ const SEED_EVENTS = [
     beschreibung: '',
     datum: new Date(NOW + 14 * 24 * 3600000).toISOString(),
     uhrzeit: null, ort: null,
-    kategorie: 'ferien', teilnehmer: ['Anna'],
+    kategorie: 'ferien',
+    ganztag: true,
+    maxTeilnehmer: null,
+    teilnehmer: ['Anna'],
+    kommentare: [],
     ts: NOW - 7200000,
   },
 ];
@@ -470,35 +484,72 @@ export function TratschProvider({ children }) {
   // ═══════════════════════════════════════════════════════════════════════════
   // KALENDER ACTIONS
   // ═══════════════════════════════════════════════════════════════════════════
-
-  const addEvent = useCallback(({ titel, beschreibung, datum, uhrzeit, ort, kategorie }) => {
+ 
+  const addEvent = useCallback(({ titel, beschreibung, datum, uhrzeit, ort, kategorie, ganztag, maxTeilnehmer }) => {
     const ev = {
-      id: Date.now().toString(), autor: currentUser,
-      titel: titel.trim(),
+      id:           Date.now().toString(),
+      autor:        currentUser,
+      titel:        titel.trim(),
       beschreibung: (beschreibung ?? '').trim(),
-      datum, uhrzeit: uhrzeit ?? null,
-      ort: (ort ?? '').trim() || null,
-      kategorie: kategorie ?? 'sonstiges',
-      teilnehmer: [currentUser],
-      ts: Date.now(),
+      datum,
+      uhrzeit:      uhrzeit ?? null,
+      ort:          (ort ?? '').trim() || null,
+      kategorie:    kategorie ?? 'sonstiges',
+      ganztag:      ganztag ?? false,
+      maxTeilnehmer: maxTeilnehmer ?? null,
+      teilnehmer:   [currentUser],
+      kommentare:   [],
+      ts:           Date.now(),
     };
     setEvents(prev => [...prev, ev].sort((a, b) => new Date(a.datum) - new Date(b.datum)));
   }, [currentUser]);
-
+ 
+  const updateEvent = useCallback(({ id, titel, beschreibung, datum, uhrzeit, ort, kategorie, ganztag, maxTeilnehmer }) => {
+    setEvents(prev => prev
+      .map(ev => ev.id !== id ? ev : {
+        ...ev,
+        titel:        titel.trim(),
+        beschreibung: (beschreibung ?? '').trim(),
+        datum,
+        uhrzeit:      uhrzeit ?? null,
+        ort:          (ort ?? '').trim() || null,
+        kategorie:    kategorie ?? ev.kategorie,
+        ganztag:      ganztag ?? false,
+        maxTeilnehmer: maxTeilnehmer ?? null,
+      })
+      .sort((a, b) => new Date(a.datum) - new Date(b.datum))
+    );
+  }, []);
+ 
   const deleteEvent = useCallback((id) => {
     setEvents(prev => prev.filter(e => e.id !== id));
   }, []);
-
+ 
   const toggleEventTeilnehmer = useCallback((id) => {
     setEvents(prev => prev.map(ev => {
       if (ev.id !== id) return ev;
       const already = ev.teilnehmer.includes(currentUser);
+      // Respect maxTeilnehmer when joining
+      if (!already && ev.maxTeilnehmer && ev.teilnehmer.length >= ev.maxTeilnehmer) return ev;
       return {
         ...ev,
         teilnehmer: already
           ? ev.teilnehmer.filter(u => u !== currentUser)
           : [...ev.teilnehmer, currentUser],
       };
+    }));
+  }, [currentUser]);
+ 
+  const addEventComment = useCallback((eventId, text) => {
+    setEvents(prev => prev.map(ev => {
+      if (ev.id !== eventId) return ev;
+      const comment = {
+        id:    Date.now().toString(),
+        autor: currentUser,
+        text:  text.trim(),
+        ts:    Date.now(),
+      };
+      return { ...ev, kommentare: [...(ev.kommentare ?? []), comment] };
     }));
   }, [currentUser]);
 
@@ -547,7 +598,8 @@ export function TratschProvider({ children }) {
       // draussen
       draussenList: activeDraussen, geheDraus, geheRein,
       // kalender
-      events, addEvent, deleteEvent, toggleEventTeilnehmer,
+      events, addEvent, updateEvent, deleteEvent,
+      toggleEventTeilnehmer, addEventComment,
       // profil
       kinderMap, updateKinder,
       groupCode, updateGroupCode,
